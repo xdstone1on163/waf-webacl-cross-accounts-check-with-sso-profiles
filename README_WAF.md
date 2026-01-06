@@ -1,0 +1,513 @@
+# AWS Multi-Account WAF 配置提取工具
+
+从多个 AWS member account 中自动提取 WAF v2 Web ACL 配置的 Python 工具集。
+
+## 功能特性
+
+✅ 支持 AWS Identity Center (SSO) 多账户认证
+✅ 并行扫描多个账户和区域
+✅ 同时支持 CLOUDFRONT 和 REGIONAL scope
+✅ 完整的错误处理和权限检查
+✅ JSON 格式导出配置详情
+✅ **自动获取 WAF ACL 关联的 AWS 资源**
+✅ **智能解析资源 ARN，显示友好的资源类型**
+✅ 数据分析和可视化工具
+✅ CSV 导出功能
+✅ 关联资源统计分析
+
+## 文件说明
+
+| 文件 | 说明 |
+|------|------|
+| `get_waf_config.py` | 主程序：从 AWS 账户提取 WAF 配置 |
+| `analyze_waf_config.py` | 分析工具：解析和分析导出的配置 |
+| `README_WAF.md` | 本文档 |
+
+## 前置要求
+
+### 1. Python 环境
+```bash
+python3 --version  # 需要 Python 3.7+
+```
+
+### 2. 安装依赖
+```bash
+pip3 install boto3
+```
+
+### 3. AWS 认证配置
+
+#### 方式 A：AWS Identity Center (SSO) - 推荐
+```bash
+# 配置 SSO profile
+aws configure sso
+
+# 登录（在运行脚本前）
+aws sso login --profile AdministratorAccess-275261018177
+```
+
+#### 方式 B：IAM 用户凭证
+在 `~/.aws/credentials` 中配置：
+```ini
+[default]
+aws_access_key_id = YOUR_ACCESS_KEY
+aws_secret_access_key = YOUR_SECRET_KEY
+```
+
+### 4. 所需权限
+
+确保你的 Identity Center 权限集或 IAM 用户具备以下权限：
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "wafv2:ListWebACLs",
+        "wafv2:GetWebACL",
+        "wafv2:ListResourcesForWebACL",
+        "sts:GetCallerIdentity"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+**新增权限说明**：
+- `wafv2:ListResourcesForWebACL` - 获取 WAF ACL 关联的 AWS 资源（ALB、CloudFront、API Gateway 等）
+
+可选（如需列出所有账户）：
+```json
+{
+  "Effect": "Allow",
+  "Action": [
+    "organizations:ListAccounts",
+    "organizations:DescribeAccount"
+  ],
+  "Resource": "*"
+}
+```
+
+## 使用指南
+
+### 第一步：提取 WAF 配置
+
+#### 基本用法
+```bash
+# 使用默认配置（扫描所有 SSO profile）
+python3 get_waf_config.py
+```
+
+#### 指定 Profile
+```bash
+# 扫描单个账户
+python3 get_waf_config.py -p AdministratorAccess-275261018177
+
+# 扫描多个账户
+python3 get_waf_config.py -p profile1 profile2 profile3
+```
+
+#### 指定区域
+```bash
+# 只扫描特定区域
+python3 get_waf_config.py -r us-east-1 us-west-2 ap-northeast-1
+
+# 扫描全球所有区域
+python3 get_waf_config.py -r us-east-1 us-east-2 us-west-1 us-west-2 \
+  ap-south-1 ap-northeast-1 ap-northeast-2 ap-southeast-1 ap-southeast-2 \
+  ca-central-1 eu-central-1 eu-west-1 eu-west-2 eu-west-3 \
+  sa-east-1
+```
+
+#### 其他选项
+```bash
+# 指定输出文件
+python3 get_waf_config.py -o my_waf_report.json
+
+# 串行扫描（禁用并行）
+python3 get_waf_config.py --no-parallel
+
+# 查看帮助
+python3 get_waf_config.py --help
+```
+
+#### 输出示例
+```
+================================================================================
+正在扫描账户: AdministratorAccess-275261018177
+================================================================================
+✓ 账户 ID: 275261018177
+
+  扫描区域: us-east-1
+    检查 CLOUDFRONT scope...
+    ✓ 获取到 Web ACL: CloudFront-Protection (2 个关联资源)
+    检查 REGIONAL scope...
+    ✓ 获取到 Web ACL: API-Gateway-WAF (1 个关联资源)
+
+  扫描区域: us-west-2
+    检查 REGIONAL scope...
+    ✓ 获取到 Web ACL: ALB-Protection (3 个关联资源)
+
+================================================================================
+扫描摘要
+================================================================================
+
+账户 275261018177 (AdministratorAccess-275261018177):
+  - us-east-1 (CLOUDFRONT): 1 个 Web ACL, 2 个关联资源
+  - us-east-1 (REGIONAL): 1 个 Web ACL, 1 个关联资源
+  - us-west-2 (REGIONAL): 1 个 Web ACL, 3 个关联资源
+
+总计: 3 个 Web ACL, 6 个关联资源
+
+================================================================================
+✓ 结果已保存到: waf_config_20260105_143022.json
+================================================================================
+```
+
+### 第二步：分析 WAF 配置
+
+#### 列出所有 Web ACL
+```bash
+python3 analyze_waf_config.py waf_config_20260105_143022.json --list
+```
+
+#### 分析规则统计
+```bash
+python3 analyze_waf_config.py waf_config_20260105_143022.json --analyze
+```
+
+输出示例：
+```
+================================================================================
+规则分析
+================================================================================
+
+规则类型分布:
+  Managed: AWS/AWSManagedRulesCommonRuleSet: 45
+  Managed: AWS/AWSManagedRulesKnownBadInputsRuleSet: 30
+  Rate-based: 12
+  IP Set: 8
+  Geo Match: 5
+
+规则动作分布:
+  Block: 67
+  Allow: 18
+  Count: 15
+```
+
+#### 分析关联资源统计
+```bash
+python3 analyze_waf_config.py waf_config_20260105_143022.json --resources
+```
+
+输出示例：
+```
+================================================================================
+关联资源分析
+================================================================================
+
+资源统计:
+  Web ACL 总数: 15
+  有关联资源的 ACL: 12
+  无关联资源的 ACL: 3
+  关联资源总数: 28
+
+资源类型分布:
+  Application Load Balancer: 15
+  CloudFront Distribution: 8
+  REST API: 3
+  Cognito User Pool: 2
+```
+
+#### 搜索特定 Web ACL
+```bash
+# 搜索名称包含 "api" 的 ACL
+python3 analyze_waf_config.py waf_config_20260105_143022.json --search api
+
+# 搜索名称包含 "cloudfront" 的 ACL
+python3 analyze_waf_config.py waf_config_20260105_143022.json --search cloudfront
+```
+
+#### 导出为 CSV
+```bash
+python3 analyze_waf_config.py waf_config_20260105_143022.json --csv waf_report.csv
+```
+
+#### 综合分析
+```bash
+# 执行所有分析
+python3 analyze_waf_config.py waf_config_20260105_143022.json
+```
+
+## 输出数据结构
+
+### JSON 格式
+```json
+[
+  {
+    "profile": "AdministratorAccess-275261018177",
+    "scan_time": "2026-01-05T14:30:22.123456",
+    "account_info": {
+      "account_id": "275261018177",
+      "arn": "arn:aws:sts::275261018177:assumed-role/...",
+      "user_id": "AROA..."
+    },
+    "regions": [
+      {
+        "region": "us-east-1",
+        "cloudfront_acls": [
+          {
+            "summary": {
+              "Name": "CloudFront-Protection",
+              "Id": "a1b2c3d4-...",
+              "ARN": "arn:aws:wafv2:us-east-1:..."
+            },
+            "detail": {
+              "Name": "CloudFront-Protection",
+              "Id": "a1b2c3d4-...",
+              "Capacity": 500,
+              "Rules": [
+                {
+                  "Name": "AWSManagedRulesCommonRuleSet",
+                  "Priority": 0,
+                  "Statement": {
+                    "ManagedRuleGroupStatement": {
+                      "VendorName": "AWS",
+                      "Name": "AWSManagedRulesCommonRuleSet"
+                    }
+                  },
+                  "Action": {
+                    "Block": {}
+                  }
+                }
+              ],
+              "DefaultAction": {
+                "Allow": {}
+              }
+            },
+            "associated_resources": [
+              {
+                "arn": "arn:aws:cloudfront::275261018177:distribution/E1234567890ABC",
+                "partition": "aws",
+                "service": "cloudfront",
+                "region": "",
+                "account_id": "275261018177",
+                "resource": "distribution/E1234567890ABC",
+                "resource_type": "distribution",
+                "resource_id": "E1234567890ABC",
+                "friendly_type": "CloudFront Distribution",
+                "resource_type_api": "CLOUDFRONT"
+              },
+              {
+                "arn": "arn:aws:elasticloadbalancing:us-east-1:275261018177:loadbalancer/app/my-alb/1234567890abcdef",
+                "partition": "aws",
+                "service": "elasticloadbalancing",
+                "region": "us-east-1",
+                "account_id": "275261018177",
+                "resource": "loadbalancer/app/my-alb/1234567890abcdef",
+                "resource_type": "loadbalancer/app",
+                "resource_id": "my-alb/1234567890abcdef",
+                "friendly_type": "Application Load Balancer",
+                "resource_type_api": "APPLICATION_LOAD_BALANCER"
+              }
+            ]
+          }
+        ],
+        "regional_acls": [...]
+      }
+    ]
+  }
+]
+```
+
+### 关联资源字段说明
+
+每个关联资源包含以下字段：
+
+| 字段 | 说明 | 示例 |
+|------|------|------|
+| `arn` | 完整的资源 ARN | `arn:aws:elasticloadbalancing:us-east-1:...` |
+| `partition` | AWS 分区 | `aws`, `aws-cn`, `aws-us-gov` |
+| `service` | AWS 服务 | `elasticloadbalancing`, `cloudfront`, `apigateway` |
+| `region` | AWS 区域 | `us-east-1`, `ap-northeast-1` |
+| `account_id` | AWS 账户 ID | `275261018177` |
+| `resource` | 资源标识符 | `loadbalancer/app/my-alb/...` |
+| `resource_type` | 资源类型 | `loadbalancer/app`, `distribution` |
+| `resource_id` | 资源 ID | `my-alb/1234567890abcdef` |
+| `friendly_type` | 友好的资源类型名称 | `Application Load Balancer` |
+| `resource_type_api` | AWS API 资源类型 | `APPLICATION_LOAD_BALANCER` |
+
+## 常见问题
+
+### Q1: SSO Token 过期怎么办？
+```bash
+# 重新登录
+aws sso login --profile AdministratorAccess-275261018177
+
+# 然后重新运行脚本
+python3 get_waf_config.py
+```
+
+### Q2: 如何只扫描生产环境账户？
+```bash
+# 只指定生产环境的 profile
+python3 get_waf_config.py -p prod-account-1 prod-account-2
+```
+
+### Q3: 扫描很慢怎么办？
+```bash
+# 减少扫描的区域数量
+python3 get_waf_config.py -r us-east-1 us-west-2
+
+# 或者确保启用了并行模式（默认启用）
+```
+
+### Q4: 遇到权限错误？
+检查你的权限集是否包含：
+- `wafv2:ListWebACLs`
+- `wafv2:GetWebACL`
+- `sts:GetCallerIdentity`
+
+### Q5: 如何获取 WAF Classic 的配置？
+目前脚本只支持 WAF v2。如需 WAF Classic，需要修改代码使用 `waf` 和 `waf-regional` 客户端。
+
+### Q6: 中国区域支持吗？
+支持！只需在 `-r` 参数中指定中国区域：
+```bash
+python3 get_waf_config.py -r cn-north-1 cn-northwest-1 -p china-admin
+```
+
+### Q7: 支持哪些类型的关联资源？
+
+工具自动检测以下 AWS 资源类型：
+
+**CLOUDFRONT Scope**:
+- CloudFront Distribution
+
+**REGIONAL Scope**:
+- Application Load Balancer (ALB)
+- API Gateway REST API
+- API Gateway HTTP/WebSocket API
+- AWS AppSync GraphQL API
+- Cognito User Pool
+- AWS App Runner Service
+- Verified Access Instance
+
+### Q8: 为什么某些 Web ACL 显示 "无关联资源"？
+
+可能的原因：
+1. Web ACL 确实没有关联任何资源（可能是测试用的或待启用的）
+2. 缺少 `wafv2:ListResourcesForWebACL` 权限
+3. 资源类型不在支持的列表中（较少见）
+
+## 高级用法
+
+### 定时任务
+```bash
+# 每天凌晨 2 点扫描
+# 添加到 crontab
+0 2 * * * cd /path/to/script && python3 get_waf_config.py -o daily_waf_$(date +\%Y\%m\%d).json
+```
+
+### 与其他工具集成
+```python
+import json
+
+# 读取 WAF 配置
+with open('waf_config.json', 'r') as f:
+    waf_data = json.load(f)
+
+# 自定义处理
+for account in waf_data:
+    # 你的逻辑
+    pass
+```
+
+### 过滤特定资源
+修改 `get_waf_config.py` 中的 `get_web_acls_in_region` 方法，添加过滤逻辑。
+
+## 故障排查
+
+### 日志级别
+在脚本中添加调试信息：
+```python
+import logging
+logging.basicConfig(level=logging.DEBUG)
+```
+
+### 测试单个账户
+```bash
+# 先测试单个账户单个区域
+python3 get_waf_config.py \
+  -p AdministratorAccess-275261018177 \
+  -r us-east-1 \
+  --no-parallel
+```
+
+## 安全建议
+
+### ⚠️ 重要安全提醒
+
+**输出文件包含敏感信息！**
+
+生成的 JSON 文件包含：
+- AWS 账户 ID
+- 资源 ARN（包含账户、区域、资源 ID）
+- Web ACL 配置详情
+- 关联资源信息
+
+### 🔒 最佳实践
+
+1. ⚠️ **不要将输出的 JSON 文件提交到 Git**
+   ```bash
+   # .gitignore 已配置忽略这些文件
+   waf_config_*.json
+   *.csv
+   ```
+
+2. ⚠️ **使用只读权限**
+   - 工具只需要读取权限
+   - 不需要 WAF 的写入权限
+   - 建议使用自定义 IAM 策略限制权限
+
+3. ⚠️ **定期轮换凭证**
+   - 如果使用 IAM 用户，定期轮换访问密钥
+   - SSO token 会自动过期（推荐）
+
+4. ✅ **使用 SSO 而不是长期凭证**
+   - 更安全的身份验证方式
+   - 自动过期，减少凭证泄露风险
+   - 便于集中管理访问权限
+
+5. ✅ **限制访问范围**
+   - 只扫描必要的账户和区域
+   - 使用最小权限原则
+   - 定期审计访问权限
+
+### 🛡️ 分享代码前
+
+如果要分享此代码给他人，**必须先清理敏感信息**：
+
+```bash
+# 1. 运行安全检查
+./security_check.sh
+
+# 2. 删除敏感文件
+rm -f waf_config_*.json *.csv
+
+# 3. 查看详细指南
+cat SHARING_GUIDE.md
+```
+
+详细的分享准备指南请参考：`SHARING_GUIDE.md`
+
+## 贡献和反馈
+
+如果你发现 bug 或有改进建议，欢迎反馈！
+
+## 许可证
+
+MIT License

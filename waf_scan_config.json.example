@@ -1,0 +1,92 @@
+{
+  "_comment": "WAF 配置扫描设置文件 - 示例模板",
+  "_usage": "复制此文件为 waf_scan_config.json 并修改为你的实际配置",
+
+  "profiles": [
+    "your-aws-profile-name-1",
+    "your-aws-profile-name-2",
+    "your-aws-profile-name-3"
+  ],
+
+  "regions": {
+    "common": [
+      "us-east-1",
+      "us-west-2",
+      "ap-northeast-1",
+      "ap-southeast-1",
+      "eu-west-1",
+      "eu-central-1"
+    ],
+
+    "all_us": [
+      "us-east-1",
+      "us-east-2",
+      "us-west-1",
+      "us-west-2"
+    ],
+
+    "all_apac": [
+      "ap-south-1",
+      "ap-northeast-1",
+      "ap-northeast-2",
+      "ap-northeast-3",
+      "ap-southeast-1",
+      "ap-southeast-2",
+      "ap-east-1"
+    ],
+
+    "all_emea": [
+      "eu-central-1",
+      "eu-west-1",
+      "eu-west-2",
+      "eu-west-3",
+      "eu-north-1",
+      "eu-south-1",
+      "me-south-1",
+      "af-south-1"
+    ],
+
+    "china": [
+      "cn-north-1",
+      "cn-northwest-1"
+    ],
+
+    "global": [
+      "us-east-1",
+      "us-east-2",
+      "us-west-1",
+      "us-west-2",
+      "ap-south-1",
+      "ap-northeast-1",
+      "ap-northeast-2",
+      "ap-northeast-3",
+      "ap-southeast-1",
+      "ap-southeast-2",
+      "ap-east-1",
+      "ca-central-1",
+      "eu-central-1",
+      "eu-west-1",
+      "eu-west-2",
+      "eu-west-3",
+      "eu-north-1",
+      "eu-south-1",
+      "me-south-1",
+      "af-south-1",
+      "sa-east-1"
+    ]
+  },
+
+  "scan_options": {
+    "parallel": true,
+    "max_workers": 3,
+    "output_format": "json",
+    "include_rule_details": true,
+    "include_resources": true
+  },
+
+  "notifications": {
+    "enabled": false,
+    "email": "your-email@example.com",
+    "slack_webhook": ""
+  }
+}
