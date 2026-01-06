@@ -104,8 +104,10 @@ class WAFConfigAnalyzer:
             rule_type = self._get_rule_type(statement)
             rule_types[rule_type] += 1
 
-            # 规则动作
+            # 规则动作（支持 Action 和 OverrideAction）
             action = rule.get('Action', {})
+            override_action = rule.get('OverrideAction', {})
+
             if 'Allow' in action:
                 rule_actions['Allow'] += 1
             elif 'Block' in action:
@@ -114,6 +116,10 @@ class WAFConfigAnalyzer:
                 rule_actions['Count'] += 1
             elif 'Captcha' in action:
                 rule_actions['Captcha'] += 1
+            elif 'None' in override_action:
+                rule_actions['None (规则组默认)'] += 1
+            elif 'Count' in override_action:
+                rule_actions['Count (覆盖)'] += 1
 
     def _get_rule_type(self, statement: Dict) -> str:
         """识别规则类型"""
@@ -209,8 +215,11 @@ class WAFConfigAnalyzer:
                 statement = rule.get('Statement', {})
                 rule_type = self._get_rule_type(statement)
 
-                # 获取动作
-                action = self._get_action_name(rule.get('Action', {}))
+                # 获取动作（支持 Action 和 OverrideAction）
+                action = self._get_action_name(
+                    rule.get('Action', {}),
+                    rule.get('OverrideAction')
+                )
 
                 # 格式化输出
                 print(f"      [{priority:3d}] {rule_name}")
@@ -261,12 +270,21 @@ class WAFConfigAnalyzer:
         for i, rule in enumerate(rules, 1):
             rule_name = rule.get('Name', 'Unnamed')
             priority = rule.get('Priority', -1)
-            action = self._get_action_name(rule.get('Action', {}))
+            action = self._get_action_name(
+                rule.get('Action', {}),
+                rule.get('OverrideAction')
+            )
 
             print(f"    {i}. [{priority}] {rule_name} -> {action}")
 
-    def _get_action_name(self, action: Dict) -> str:
-        """获取动作名称"""
+    def _get_action_name(self, action: Dict, override_action: Dict = None) -> str:
+        """
+        获取动作名称
+
+        对于普通规则，使用 Action 字段
+        对于 Managed Rule Groups 和 Rule Groups，使用 OverrideAction 字段
+        """
+        # 先检查 Action 字段（普通规则）
         if 'Allow' in action:
             return "Allow"
         elif 'Block' in action:
@@ -275,8 +293,15 @@ class WAFConfigAnalyzer:
             return "Count"
         elif 'Captcha' in action:
             return "Captcha"
-        else:
-            return "Unknown"
+
+        # 检查 OverrideAction 字段（Managed Rule Groups）
+        if override_action:
+            if 'None' in override_action:
+                return "None (使用规则组默认动作)"
+            elif 'Count' in override_action:
+                return "Count (覆盖)"
+
+        return "Unknown"
 
     def export_csv(self, output_file: str):
         """导出为 CSV 格式"""
