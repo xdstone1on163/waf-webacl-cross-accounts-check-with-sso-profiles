@@ -134,6 +134,9 @@ class WAFConfigExtractor:
                 },
                 'verified-access': {
                     'instance': 'Verified Access Instance'
+                },
+                'amplify': {
+                    'apps': 'Amplify App'
                 }
             }
 
@@ -170,13 +173,14 @@ class WAFConfigExtractor:
         associated_resources = []
 
         # 如果是 CLOUDFRONT scope，获取 CloudFront 分配
+        # 注意：对于 CLOUDFRONT scope，不需要指定 ResourceType 参数
         if scope == 'CLOUDFRONT':
             try:
                 if debug:
-                    print(f"      [DEBUG] 尝试获取 CLOUDFRONT 资源...")
+                    print(f"      [DEBUG] 尝试获取 CLOUDFRONT 关联资源...")
+                # 对于 CLOUDFRONT scope，不传递 ResourceType 参数
                 response = wafv2_client.list_resources_for_web_acl(
-                    WebACLArn=web_acl_arn,
-                    ResourceType='CLOUDFRONT'
+                    WebACLArn=web_acl_arn
                 )
                 resource_arns = response.get('ResourceArns', [])
                 if debug:
@@ -197,7 +201,8 @@ class WAFConfigExtractor:
                 'APPSYNC',
                 'APP_RUNNER_SERVICE',
                 'COGNITO_USER_POOL',
-                'VERIFIED_ACCESS_INSTANCE'
+                'VERIFIED_ACCESS_INSTANCE',
+                'AMPLIFY'  # AWS Amplify apps
             ]
 
             for resource_type in resource_types:
