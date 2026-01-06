@@ -49,3 +49,6 @@ waf_*.csv
 config.local.json
 .env
 .env.local
+
+# 个人扫描脚本（包含真实的 profile 名称）
+scan_my_accounts.sh
