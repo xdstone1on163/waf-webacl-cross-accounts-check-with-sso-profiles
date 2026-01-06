@@ -173,7 +173,8 @@ class WAFConfigAnalyzer:
         name = summary.get('Name', 'Unknown')
         acl_id = summary.get('Id', 'Unknown')
         capacity = detail.get('Capacity', 0)
-        rule_count = len(detail.get('Rules', []))
+        rules = detail.get('Rules', [])
+        rule_count = len(rules)
 
         print(f"\n  [{scope}] {name}")
         print(f"    区域: {region}")
@@ -196,6 +197,32 @@ class WAFConfigAnalyzer:
                 print(f"      ... 还有 {len(resources) - 5} 个资源")
         else:
             print(f"    关联资源: 无")
+
+        # 显示规则列表
+        if rules:
+            print(f"\n    规则集:")
+            for rule in rules:
+                rule_name = rule.get('Name', 'Unnamed')
+                priority = rule.get('Priority', -1)
+
+                # 获取规则类型
+                statement = rule.get('Statement', {})
+                rule_type = self._get_rule_type(statement)
+
+                # 获取动作
+                action = self._get_action_name(rule.get('Action', {}))
+
+                # 格式化输出
+                print(f"      [{priority:3d}] {rule_name}")
+                print(f"            类型: {rule_type}")
+                print(f"            动作: {action}")
+        else:
+            print(f"\n    规则集: 无")
+
+        # 显示默认动作
+        default_action = detail.get('DefaultAction', {})
+        default_action_name = self._get_action_name(default_action)
+        print(f"    默认动作: {default_action_name}")
 
     def find_by_name(self, name_pattern: str):
         """根据名称查找 Web ACL"""
