@@ -130,6 +130,7 @@ aws_secret_access_key = YOUR_SECRET_KEY
         "wafv2:ListWebACLs",
         "wafv2:GetWebACL",
         "wafv2:ListResourcesForWebACL",
+        "cloudfront:ListDistributionsByWebACLId",
         "sts:GetCallerIdentity"
       ],
       "Resource": "*"
@@ -139,7 +140,8 @@ aws_secret_access_key = YOUR_SECRET_KEY
 ```
 
 **新增权限说明**：
-- `wafv2:ListResourcesForWebACL` - 获取 WAF ACL 关联的 AWS 资源（ALB、CloudFront、API Gateway 等）
+- `wafv2:ListResourcesForWebACL` - 获取 WAF ACL 关联的 AWS 资源（ALB、API Gateway 等）
+- `cloudfront:ListDistributionsByWebACLId` - 获取 CloudFront distributions 与 WAF ACL 的关联关系
 
 可选（如需列出所有账户）：
 ```json
@@ -513,7 +515,9 @@ python3 get_waf_config.py -r cn-north-1 cn-northwest-1 -p china-admin
 
 可能的原因：
 1. Web ACL 确实没有关联任何资源（可能是测试用的或待启用的）
-2. 缺少 `wafv2:ListResourcesForWebACL` 权限
+2. 缺少必需的权限：
+   - `wafv2:ListResourcesForWebACL` - 用于获取 Regional 资源
+   - `cloudfront:ListDistributionsByWebACLId` - 用于获取 CloudFront 资源
 3. 资源类型不在支持的列表中（较少见）
 
 ## 高级用法

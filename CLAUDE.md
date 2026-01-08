@@ -120,6 +120,19 @@ aws sts get-caller-identity --profile AdministratorAccess-275261018177
 - **Regional**: 区域资源，每个指定区域都要扫描
 - `get_waf_config.py:289-312` 中实现了 scope 特定的扫描逻辑
 
+### 获取关联资源的实现
+
+**CloudFront scope**（`get_waf_config.py:177-228`）:
+- 使用 **CloudFront API** 而不是 WAFv2 API
+- 调用 `cloudfront.list_distributions_by_web_acl_id(WebACLId=arn)`
+- 从 CloudFront 服务直接查询，更可靠
+- 额外提取 `distribution_domain` 和 `distribution_status` 字段
+
+**Regional scope**（`get_waf_config.py:231-263`）:
+- 使用 **WAFv2 API** `list_resources_for_web_acl`
+- 遍历所有支持的资源类型（ALB、API Gateway、AppSync 等）
+- 每种资源类型单独查询
+
 ### 资源 ARN 解析
 
 ARN 格式: `arn:partition:service:region:account-id:resource-type/resource-id`
@@ -132,6 +145,7 @@ ARN 格式: `arn:partition:service:region:account-id:resource-type/resource-id`
 
 ### 已知问题修复
 
+- **CloudFront distribution 关联**: 使用 CloudFront API `list_distributions_by_web_acl_id` 替代 WAFv2 API，解决无法获取关联的问题
 - **Managed Rule Groups 动作显示**: commit `5247b73` 修复了动作显示为 "Unknown" 的问题
 - **CloudFront 区域发现**: commit `9fca584` 修复了 CloudFront WebACL 必须在 us-east-1 扫描的问题
 
@@ -147,6 +161,7 @@ ARN 格式: `arn:partition:service:region:account-id:resource-type/resource-id`
         "wafv2:ListWebACLs",
         "wafv2:GetWebACL",
         "wafv2:ListResourcesForWebACL",
+        "cloudfront:ListDistributionsByWebACLId",
         "sts:GetCallerIdentity"
       ],
       "Resource": "*"
@@ -154,6 +169,9 @@ ARN 格式: `arn:partition:service:region:account-id:resource-type/resource-id`
   ]
 }
 ```
+
+**新增权限说明**:
+- `cloudfront:ListDistributionsByWebACLId` - 获取与 WAF ACL 关联的 CloudFront distributions（2026-01-08 新增）
 
 ## 安全注意事项
 
@@ -166,6 +184,9 @@ ARN 格式: `arn:partition:service:region:account-id:resource-type/resource-id`
 
 ## 最近改动
 
+- 2026-01-08: 修复 CloudFront distribution 关联获取问题，使用 CloudFront API 替代 WAFv2 API
+- 2026-01-08: 修复 datetime.utcnow() deprecation warning
+- 2026-01-08 (commit 3c318a1): 添加项目级 CLAUDE.md 文档
 - 2026-01-07 (commit 612b769): 删除安全检查相关文件，简化项目结构
 - 2026-01-07 (commit 5247b73): 修复 Managed Rule Groups 动作显示为 Unknown 的问题
 - 2026-01-06 (commit b233d72): 改进规则显示功能

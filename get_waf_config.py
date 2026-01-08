@@ -9,7 +9,7 @@ AWS Multi-Account WAF Configuration Extractor
 import boto3
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import argparse
@@ -157,14 +157,15 @@ class WAFConfigExtractor:
                 'error': f'Failed to parse ARN: {str(e)}'
             }
 
-    def get_associated_resources(self, wafv2_client, web_acl_arn: str, scope: str, debug: bool = False) -> List[Dict]:
+    def get_associated_resources(self, session: boto3.Session, web_acl_arn: str, scope: str, region: str = 'us-east-1', debug: bool = False) -> List[Dict]:
         """
         获取 Web ACL 关联的 AWS 资源
 
         Args:
-            wafv2_client: WAFv2 客户端
+            session: boto3 会话
             web_acl_arn: Web ACL 的 ARN
             scope: CLOUDFRONT 或 REGIONAL
+            region: AWS 区域（用于创建客户端）
             debug: 是否显示调试信息
 
         Returns:
@@ -172,36 +173,65 @@ class WAFConfigExtractor:
         """
         associated_resources = []
 
-        # 如果是 CLOUDFRONT scope，获取 CloudFront 分配
-        # 注意：对于 CLOUDFRONT scope，不需要指定 ResourceType 参数
+        # 如果是 CLOUDFRONT scope，使用 CloudFront API 获取 distributions
         if scope == 'CLOUDFRONT':
             try:
                 if debug:
-                    print(f"      [DEBUG] 尝试获取 CLOUDFRONT 关联资源...")
+                    print(f"      [DEBUG] 使用 CloudFront API 获取关联的 distributions...")
                     print(f"      [DEBUG] Web ACL ARN: {web_acl_arn}")
-                # 对于 CLOUDFRONT scope，不传递 ResourceType 参数
-                response = wafv2_client.list_resources_for_web_acl(
-                    WebACLArn=web_acl_arn
-                )
-                resource_arns = response.get('ResourceArns', [])
+
+                # 从 ARN 中提取 Web ACL ID
+                # ARN 格式: arn:aws:wafv2:region:account-id:global/webacl/name/id
+                web_acl_id = web_acl_arn.split('/')[-1]
                 if debug:
-                    print(f"      [DEBUG] API 响应: ResourceArns = {resource_arns}")
-                    print(f"      [DEBUG] 找到 {len(resource_arns)} 个 CLOUDFRONT 资源")
-                    if len(resource_arns) == 0:
-                        print(f"      [DEBUG] ⚠️  此 Web ACL 未关联任何 CloudFront 分配")
-                        print(f"      [DEBUG] 提示: 检查 CloudFront 控制台或使用 AWS CLI 验证")
-                for resource_arn in resource_arns:
+                    print(f"      [DEBUG] Web ACL ID: {web_acl_id}")
+
+                # 创建 CloudFront 客户端
+                cloudfront_client = session.client('cloudfront', region_name='us-east-1')
+
+                # 使用 CloudFront API 获取关联的 distributions
+                response = cloudfront_client.list_distributions_by_web_acl_id(
+                    WebACLId=web_acl_arn  # CloudFront API 接受完整的 ARN
+                )
+
+                distribution_list = response.get('DistributionList', {})
+                distributions = distribution_list.get('Items', [])
+
+                if debug:
+                    print(f"      [DEBUG] 找到 {len(distributions)} 个 CloudFront distributions")
+
+                # 解析 CloudFront 账户 ID（从 ARN 中提取）
+                arn_parts = web_acl_arn.split(':')
+                account_id = arn_parts[4] if len(arn_parts) > 4 else ''
+
+                for dist in distributions:
+                    distribution_id = dist.get('Id', '')
+                    distribution_arn = f"arn:aws:cloudfront::{account_id}:distribution/{distribution_id}"
+
                     if debug:
-                        print(f"      [DEBUG] 解析资源: {resource_arn}")
-                    resource_info = self.parse_resource_arn(resource_arn)
+                        print(f"      [DEBUG] 解析 Distribution: {distribution_id}")
+                        print(f"      [DEBUG] 构建的 ARN: {distribution_arn}")
+
+                    resource_info = self.parse_resource_arn(distribution_arn)
                     resource_info['resource_type_api'] = 'CLOUDFRONT'
+                    resource_info['distribution_domain'] = dist.get('DomainName', '')
+                    resource_info['distribution_status'] = dist.get('Status', '')
                     associated_resources.append(resource_info)
+
+                if debug and len(distributions) == 0:
+                    print(f"      [DEBUG] ⚠️  此 Web ACL 未关联任何 CloudFront 分配")
+
             except Exception as e:
                 if debug:
                     print(f"      [DEBUG] 获取 CLOUDFRONT 资源失败: {str(e)}")
+                    import traceback
+                    traceback.print_exc()
 
         # 如果是 REGIONAL scope，获取所有支持的资源类型
         if scope == 'REGIONAL':
+            # 创建 WAFv2 客户端
+            wafv2_client = session.client('wafv2', region_name=region)
+
             resource_types = [
                 'APPLICATION_LOAD_BALANCER',
                 'API_GATEWAY',
@@ -264,7 +294,7 @@ class WAFConfigExtractor:
                     associated_resources = []
                     if web_acl_arn:
                         associated_resources = self.get_associated_resources(
-                            wafv2, web_acl_arn, scope, self.debug
+                            session, web_acl_arn, scope, region, self.debug
                         )
 
                     web_acl_data = {
@@ -313,7 +343,7 @@ class WAFConfigExtractor:
 
         account_result = {
             'profile': profile_name,
-            'scan_time': datetime.utcnow().isoformat(),
+            'scan_time': datetime.now(timezone.utc).isoformat(),
             'regions': []
         }
 
