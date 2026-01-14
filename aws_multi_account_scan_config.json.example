@@ -1,0 +1,222 @@
+{
+  "_comment": "AWS 多账户扫描工具 - 统一配置文件示例",
+  "_note": "复制此文件为 aws_multi_account_scan_config.json 并修改为你的实际配置",
+  "_version": "1.0",
+  "_usage_instructions": "此统一配置文件可被所有工具（WAF、ALB、Route53）使用，也可以继续使用独立配置文件（waf_scan_config.json, alb_scan_config.json, route53_scan_config.json）",
+
+  "profiles": [
+    "your-sso-profile-1",
+    "your-sso-profile-2",
+    "your-sso-profile-3"
+  ],
+
+  "regions": {
+    "_note": "所有区域性工具（WAF、ALB）共享此配置。Route53 是全局服务，会忽略此配置",
+
+    "common": [
+      "us-east-1",
+      "us-west-2",
+      "ap-northeast-1",
+      "ap-southeast-1",
+      "eu-west-1",
+      "eu-central-1"
+    ],
+
+    "all_us": [
+      "us-east-1",
+      "us-east-2",
+      "us-west-1",
+      "us-west-2"
+    ],
+
+    "all_apac": [
+      "ap-south-1",
+      "ap-northeast-1",
+      "ap-northeast-2",
+      "ap-northeast-3",
+      "ap-southeast-1",
+      "ap-southeast-2",
+      "ap-east-1"
+    ],
+
+    "all_emea": [
+      "eu-central-1",
+      "eu-west-1",
+      "eu-west-2",
+      "eu-west-3",
+      "eu-north-1",
+      "eu-south-1",
+      "me-south-1",
+      "af-south-1"
+    ],
+
+    "china": [
+      "cn-north-1",
+      "cn-northwest-1"
+    ],
+
+    "global": [
+      "us-east-1",
+      "us-east-2",
+      "us-west-1",
+      "us-west-2",
+      "ap-south-1",
+      "ap-northeast-1",
+      "ap-northeast-2",
+      "ap-northeast-3",
+      "ap-southeast-1",
+      "ap-southeast-2",
+      "ap-east-1",
+      "ca-central-1",
+      "eu-central-1",
+      "eu-west-1",
+      "eu-west-2",
+      "eu-west-3",
+      "eu-north-1",
+      "eu-south-1",
+      "me-south-1",
+      "af-south-1",
+      "sa-east-1"
+    ]
+  },
+
+  "waf": {
+    "_description": "WAF v2 Web ACL 扫描配置",
+
+    "scan_options": {
+      "parallel": true,
+      "max_workers": 3,
+      "output_format": "json",
+      "include_rule_details": true,
+      "include_resources": true,
+      "debug": false
+    }
+  },
+
+  "alb": {
+    "_description": "Application Load Balancer 扫描配置",
+
+    "scan_options": {
+      "mode": "standard",
+      "parallel": true,
+      "max_workers": 3,
+      "include_nlb": true,
+      "include_glb": false,
+      "include_security_groups": true,
+      "include_waf_details": true,
+      "debug": false
+    },
+
+    "filters": {
+      "load_balancer_types": ["application", "network"],
+      "schemes": ["internet-facing", "internal"],
+      "states": ["active"]
+    }
+  },
+
+  "route53": {
+    "_description": "Route53 Hosted Zone 和 DNS Records 扫描配置",
+    "_note": "Route53 是全局服务，不受 regions 配置影响",
+
+    "scan_options": {
+      "parallel": true,
+      "max_workers": 3,
+      "include_private_zones": false,
+      "include_vpc_details": true,
+      "output_format": "json",
+      "debug": false
+    },
+
+    "filters": {
+      "zone_types": ["public", "private"],
+      "zone_name_pattern": null,
+      "exclude_system_records": false
+    }
+  },
+
+  "_usage": {
+    "profiles": "AWS SSO profile 名称列表。运行前需要先 'aws sso login --profile <profile-name>'",
+
+    "regions": "所有区域性服务（WAF、ALB）共享此配置。Route53 是全局服务，会忽略此配置",
+
+    "waf": {
+      "include_rule_details": "是否包含规则详细配置",
+      "include_resources": "是否包含关联的资源（ALB、CloudFront 等）"
+    },
+
+    "alb": {
+      "mode": "扫描模式 - quick: 基本信息+WAF, standard: +监听器+目标组, full: +规则+健康检查",
+      "include_nlb": "是否包含 Network Load Balancer",
+      "include_glb": "是否包含 Gateway Load Balancer"
+    },
+
+    "route53": {
+      "include_private_zones": "默认 false，只扫描 Public Zones（推荐）。设为 true 会扫描 Private Zones（VPC level，可能遇到跨账户权限问题）",
+      "include_vpc_details": "仅在 include_private_zones=true 时有效。需要 ec2:DescribeVpcs 权限"
+    }
+  },
+
+  "_iam_permissions": {
+    "waf": [
+      "wafv2:ListWebACLs",
+      "wafv2:GetWebACL",
+      "wafv2:ListResourcesForWebACL",
+      "cloudfront:ListDistributionsByWebACLId",
+      "sts:GetCallerIdentity"
+    ],
+
+    "alb": [
+      "elasticloadbalancing:DescribeLoadBalancers",
+      "elasticloadbalancing:DescribeListeners",
+      "elasticloadbalancing:DescribeRules",
+      "elasticloadbalancing:DescribeTargetGroups",
+      "elasticloadbalancing:DescribeTargetHealth",
+      "wafv2:GetWebACLForResource",
+      "ec2:DescribeSecurityGroups",
+      "sts:GetCallerIdentity"
+    ],
+
+    "route53": [
+      "route53:ListHostedZones",
+      "route53:GetHostedZone",
+      "route53:ListResourceRecordSets",
+      "route53:ListTagsForResource",
+      "ec2:DescribeVpcs (可选，仅在扫描 Private Zones 时需要)",
+      "sts:GetCallerIdentity"
+    ]
+  },
+
+  "_examples": {
+    "_note": "常见使用场景示例",
+
+    "scenario_1_waf_only": {
+      "description": "只使用 WAF 扫描工具",
+      "command": "python waf_cli.py scan",
+      "config_used": "读取 waf 部分配置"
+    },
+
+    "scenario_2_alb_only": {
+      "description": "只使用 ALB 扫描工具",
+      "command": "python alb_cli.py scan",
+      "config_used": "读取 alb 部分配置"
+    },
+
+    "scenario_3_route53_only": {
+      "description": "只使用 Route53 扫描工具",
+      "command": "python route53_cli.py scan",
+      "config_used": "读取 route53 部分配置"
+    },
+
+    "scenario_4_all_tools": {
+      "description": "依次使用所有工具进行完整的 AWS 安全审计",
+      "commands": [
+        "python waf_cli.py scan",
+        "python alb_cli.py scan",
+        "python route53_cli.py scan",
+        "python waf_cli.py analyze waf_config_*.json --list",
+        "python alb_cli.py analyze alb_config_*.json --waf-coverage",
+        "python route53_cli.py analyze route53_config_*.json --by-zone-type"
+      ]
+    }
+  }
+}

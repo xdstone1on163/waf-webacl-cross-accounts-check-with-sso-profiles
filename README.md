@@ -1,10 +1,11 @@
-# AWS 多账户 WAF/ALB 配置提取工具集
+# AWS 多账户 WAF/ALB/Route53 配置提取工具集
 
-从多个 AWS member account 中自动提取 WAF v2 Web ACL 和 ALB 配置的 Python 工具集。
+从多个 AWS member account 中自动提取 WAF v2 Web ACL、ALB 和 Route53 DNS 配置的 Python 工具集。
 
-**包含两个独立工具**:
+**包含三个独立工具**:
 - 🛡️ **WAF 工具**: 提取 WAF v2 Web ACL 配置和关联资源
 - 🔀 **ALB 工具**: 提取 ALB/NLB 配置和 WAF 绑定状态
+- 🌐 **Route53 工具**: 提取 Hosted Zone 和 DNS Records 配置（新增）
 
 ## 🌍 跨平台支持
 
@@ -13,16 +14,19 @@
 ### 目录结构
 
 ```
-waf-alb-config-tool/
+waf-alb-route53-config-tool/
 ├── unix/                      # Unix 用户：bash 脚本入口
 ├── windows/                   # Windows 用户：快速入门文档
 ├── core/                      # 共享的核心模块
 ├── waf_cli.py                 # WAF 工具统一入口
-├── alb_cli.py                 # ALB 工具统一入口（新增）
+├── alb_cli.py                 # ALB 工具统一入口
+├── route53_cli.py             # Route53 工具统一入口（新增）
 ├── get_waf_config.py          # WAF 核心扫描器
-├── get_alb_config.py          # ALB 核心扫描器（新增）
+├── get_alb_config.py          # ALB 核心扫描器
+├── get_route53_config.py      # Route53 核心扫描器（新增）
 ├── analyze_waf_config.py      # WAF 分析工具
-├── analyze_alb_config.py      # ALB 分析工具（新增）
+├── analyze_alb_config.py      # ALB 分析工具
+├── analyze_route53_config.py  # Route53 分析工具（新增）
 └── ...
 ```
 
@@ -105,6 +109,33 @@ python alb_cli.py analyze alb_config_*.json --waf-coverage
 python alb_cli.py analyze alb_config_*.json --no-waf
 ```
 
+**Route53 工具（新增）:**
+```bash
+# 扫描（使用配置文件，默认只扫描 Public Zones）
+python route53_cli.py scan
+
+# 扫描指定账户
+python route53_cli.py scan -p profile1 profile2
+
+# 包含私有 Zones（需要额外的 VPC 权限）
+python route53_cli.py scan --include-private-zones
+
+# 分析 - 列出所有 Zones
+python route53_cli.py analyze route53_config_*.json --list
+
+# 分析 - 按记录类型统计
+python route53_cli.py analyze route53_config_*.json --by-record-type
+
+# 分析 - 按 Zone 类型统计
+python route53_cli.py analyze route53_config_*.json --by-zone-type
+
+# 搜索域名
+python route53_cli.py analyze route53_config_*.json --search example.com
+
+# 导出 CSV
+python route53_cli.py analyze route53_config_*.json --csv route53_report.csv
+```
+
 ### 或直接使用原始 Python 脚本
 
 ```bash
@@ -125,11 +156,14 @@ python3 analyze_waf_config.py waf_config_*.json --list
 | 脚本 | 类型 | 用途 | 使用场景 |
 |------|------|------|----------|
 | **waf_cli.py** | Python | **WAF 统一 CLI 入口** | ⭐ WAF 工具推荐入口，跨平台支持 |
-| **alb_cli.py** | Python | **ALB 统一 CLI 入口** | ⭐ ALB 工具推荐入口，跨平台支持（新增） |
+| **alb_cli.py** | Python | **ALB 统一 CLI 入口** | ⭐ ALB 工具推荐入口，跨平台支持 |
+| **route53_cli.py** | Python | **Route53 统一 CLI 入口** | ⭐ Route53 工具推荐入口，跨平台支持（新增） |
 | **get_waf_config.py** | Python | WAF 核心提取工具 | 从 AWS 提取 WAF 配置 |
-| **get_alb_config.py** | Python | ALB 核心提取工具 | 从 AWS 提取 ALB 配置（新增） |
+| **get_alb_config.py** | Python | ALB 核心提取工具 | 从 AWS 提取 ALB 配置 |
+| **get_route53_config.py** | Python | Route53 核心提取工具 | 从 AWS 提取 Route53 配置（新增） |
 | **analyze_waf_config.py** | Python | WAF 配置分析工具 | 分析 WAF 扫描结果，生成报告和统计 |
-| **analyze_alb_config.py** | Python | ALB 配置分析工具 | 分析 ALB 扫描结果，WAF 覆盖率审计（新增） |
+| **analyze_alb_config.py** | Python | ALB 配置分析工具 | 分析 ALB 扫描结果，WAF 覆盖率审计 |
+| **analyze_route53_config.py** | Python | Route53 配置分析工具 | 分析 Route53 扫描结果，DNS 记录统计（新增） |
 
 ### Unix 专用工具（在 `unix/` 目录）
 
@@ -197,7 +231,7 @@ python3 analyze_waf_config.py waf_config_*.json --list
 ✅ 关联资源统计分析
 ✅ 交互式扫描脚本，易于使用
 
-### ALB 工具（新增）
+### ALB 工具
 ✅ 跨账号扫描 ALB/NLB 配置
 ✅ **三种扫描模式**：Quick（基本+WAF）/ Standard（+监听器+目标组）/ Full（+规则+健康状态）
 ✅ **反向 WAF 查询**：从 ALB 查询绑定的 WAF ACL
@@ -208,6 +242,21 @@ python3 analyze_waf_config.py waf_config_*.json --list
 ✅ 按类型/区域统计分析
 ✅ CSV 导出功能
 ✅ 智能提示不同扫描模式的差异
+
+### Route53 工具（新增）
+✅ 跨账号扫描 Hosted Zone 和 DNS Records
+✅ **全局服务支持**：Route53 是全局服务，自动处理区域参数
+✅ **智能 Zone 过滤**：默认只扫描 Public Zones（Global level），可选包含 Private Zones（VPC level）
+✅ **完整的 DNS 记录提取**：A/AAAA/CNAME/MX/TXT/NS/SOA 等所有类型
+✅ **7 种路由策略解析**：Simple/Weighted/Latency/Failover/Geolocation/Geoproximity/Multivalue
+✅ **Alias 记录智能推断**：自动识别 ALB/CloudFront/S3/API Gateway 等目标类型
+✅ **私有 Zone 支持**：可选扫描 Private Zones 并提取 VPC 关联（需要额外权限）
+✅ **API 分页和限流保护**：自动处理大量记录和 API 限流重试
+✅ 按记录类型/Zone 类型统计分析
+✅ 路由策略使用情况统计
+✅ 健康检查配置审计（查找缺少健康检查的高级路由策略）
+✅ 按名称/值搜索 DNS 记录
+✅ CSV 导出功能
 
 ## 前置要求
 
@@ -308,6 +357,44 @@ aws_secret_access_key = YOUR_SECRET_KEY
 - `wafv2:GetWebACLForResource` - **反向查询**：从 ALB ARN 查询绑定的 WAF ACL
 - `ec2:DescribeSecurityGroups` - 获取安全组详情
 
+#### Route53 工具权限（新增）
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "route53:ListHostedZones",
+        "route53:GetHostedZone",
+        "route53:ListResourceRecordSets",
+        "route53:ListTagsForResource",
+        "sts:GetCallerIdentity"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+**权限说明**：
+- `route53:ListHostedZones` - 列出所有 Hosted Zones
+- `route53:GetHostedZone` - 获取 Zone 详情（包含 VPC 关联）
+- `route53:ListResourceRecordSets` - 获取 DNS 记录
+- `route53:ListTagsForResource` - 获取 Zone 标签
+
+**可选权限**（仅在扫描 Private Zones 时需要）：
+```json
+{
+  "Effect": "Allow",
+  "Action": [
+    "ec2:DescribeVpcs"
+  ],
+  "Resource": "*"
+}
+```
+
 可选（如需列出所有账户）：
 ```json
 {
@@ -318,6 +405,81 @@ aws_secret_access_key = YOUR_SECRET_KEY
   ],
   "Resource": "*"
 }
+```
+
+### 5. 配置文件
+
+本工具支持两种配置文件方式：
+
+#### 方式 A：统一配置文件（推荐）
+
+使用单个配置文件 `aws_multi_account_scan_config.json` 管理所有工具（WAF、ALB、Route53）：
+
+```bash
+# 1. 复制示例文件
+cp aws_multi_account_scan_config.json.example aws_multi_account_scan_config.json
+
+# 2. 编辑配置文件，填入你的 AWS profiles
+vi aws_multi_account_scan_config.json
+```
+
+**统一配置文件结构**：
+```json
+{
+  "profiles": [
+    "your-sso-profile-1",
+    "your-sso-profile-2"
+  ],
+  "regions": {
+    "common": ["us-east-1", "us-west-2", "ap-northeast-1"]
+  },
+  "waf": {
+    "scan_options": { "parallel": true, "max_workers": 3 }
+  },
+  "alb": {
+    "scan_options": { "mode": "standard", "parallel": true }
+  },
+  "route53": {
+    "scan_options": { "include_private_zones": false }
+  }
+}
+```
+
+**优点**：
+- ✅ 一个文件管理所有工具配置
+- ✅ profiles 和 regions 共享，避免重复
+- ✅ 更容易维护和版本控制
+
+#### 方式 B：独立配置文件（向后兼容）
+
+每个工具使用独立的配置文件：
+
+```bash
+# WAF 工具
+cp waf_scan_config.json.example waf_scan_config.json
+vi waf_scan_config.json
+
+# ALB 工具
+cp alb_scan_config.json.example alb_scan_config.json
+vi alb_scan_config.json
+
+# Route53 工具
+cp route53_scan_config.json.example route53_scan_config.json
+vi route53_scan_config.json
+```
+
+**配置文件优先级**：
+1. 独立配置文件（如 `waf_scan_config.json`）- 优先级最高
+2. 统一配置文件（`aws_multi_account_scan_config.json`）- 备选
+3. 命令行参数 - 可以覆盖配置文件
+
+**示例**：
+```bash
+# 使用统一配置文件
+python waf_cli.py scan  # 自动读取 aws_multi_account_scan_config.json
+
+# 命令行参数覆盖配置文件
+python waf_cli.py scan -p custom-profile -r us-east-1
 ```
 
 ## 使用指南

@@ -1,0 +1,171 @@
+{
+  "_comment": "Route53 配置扫描设置文件 - 本地使用，不要提交到 Git",
+  "_note": "此文件包含你的真实 AWS profile 名称，已被 .gitignore 忽略",
+  "_usage": "复制此文件为 route53_scan_config.json 并修改为你的实际配置",
+
+  "profiles": [
+    "your-sso-profile-1",
+    "your-sso-profile-2",
+    "your-sso-profile-3"
+  ],
+
+  "regions": {
+    "_important": "⚠️  Route53 是全局服务，regions 参数会被忽略（保留以兼容配置文件结构）",
+
+    "common": [
+      "us-east-1",
+      "us-west-2",
+      "ap-northeast-1",
+      "ap-southeast-1",
+      "eu-west-1",
+      "eu-central-1"
+    ],
+
+    "all_us": [
+      "us-east-1",
+      "us-east-2",
+      "us-west-1",
+      "us-west-2"
+    ],
+
+    "all_apac": [
+      "ap-south-1",
+      "ap-northeast-1",
+      "ap-northeast-2",
+      "ap-northeast-3",
+      "ap-southeast-1",
+      "ap-southeast-2",
+      "ap-east-1"
+    ],
+
+    "all_emea": [
+      "eu-central-1",
+      "eu-west-1",
+      "eu-west-2",
+      "eu-west-3",
+      "eu-north-1",
+      "eu-south-1",
+      "me-south-1",
+      "af-south-1"
+    ],
+
+    "china": [
+      "cn-north-1",
+      "cn-northwest-1"
+    ],
+
+    "global": [
+      "us-east-1",
+      "us-east-2",
+      "us-west-1",
+      "us-west-2",
+      "ap-south-1",
+      "ap-northeast-1",
+      "ap-northeast-2",
+      "ap-northeast-3",
+      "ap-southeast-1",
+      "ap-southeast-2",
+      "ap-east-1",
+      "ca-central-1",
+      "eu-central-1",
+      "eu-west-1",
+      "eu-west-2",
+      "eu-west-3",
+      "eu-north-1",
+      "eu-south-1",
+      "me-south-1",
+      "af-south-1",
+      "sa-east-1"
+    ]
+  },
+
+  "scan_options": {
+    "parallel": true,
+    "max_workers": 3,
+    "include_private_zones": false,
+    "include_vpc_details": true,
+    "output_format": "json",
+    "debug": false
+  },
+
+  "filters": {
+    "_note": "过滤选项（未来可扩展）",
+    "zone_types": ["public", "private"],
+    "zone_name_pattern": null,
+    "exclude_system_records": false
+  },
+
+  "_usage_notes": {
+    "profiles": "AWS SSO profile 名称列表。运行前需要先 'aws sso login --profile <profile-name>'",
+
+    "regions": "Route53 是全局服务，此配置项会被忽略。保留是为了与 WAF/ALB 工具保持配置文件结构一致",
+
+    "include_private_zones": [
+      "默认 false - 推荐：只扫描 Public Hosted Zones（Global level，面向互联网的域名）",
+      "设为 true - 高级：同时扫描 Private Hosted Zones（VPC level，内部 DNS）",
+      "⚠️  启用 Private Zones 可能遇到的问题：",
+      "  1. 跨账户 VPC 权限问题（Private Zone 可以关联其他账户的 VPC）",
+      "  2. 跨区域 VPC 权限问题（Private Zone 可以关联不同区域的 VPC）",
+      "  3. 需要额外的 ec2:DescribeVpcs 权限（如果 include_vpc_details=true）"
+    ],
+
+    "include_vpc_details": [
+      "仅在 include_private_zones=true 时有效",
+      "设为 true - 尝试获取 VPC 名称（需要 ec2:DescribeVpcs 权限）",
+      "设为 false - 只记录 VPC ID，不查询名称（跳过权限检查）"
+    ],
+
+    "parallel": "是否并行扫描多个账户（推荐 true）",
+
+    "max_workers": "并行扫描的最大线程数（推荐 3，避免 API 限流）",
+
+    "debug": "启用详细的调试输出（排查问题时使用）"
+  },
+
+  "_iam_permissions_required": {
+    "_note": "扫描所需的最小 IAM 权限",
+
+    "basic_scan": [
+      "route53:ListHostedZones",
+      "route53:GetHostedZone",
+      "route53:ListResourceRecordSets",
+      "route53:ListTagsForResource",
+      "sts:GetCallerIdentity"
+    ],
+
+    "optional_for_private_zones": [
+      "ec2:DescribeVpcs - 仅在 include_private_zones=true 且 include_vpc_details=true 时需要"
+    ]
+  },
+
+  "_examples": {
+    "_note": "常见使用场景示例",
+
+    "scenario_1_public_only": {
+      "description": "标准场景：只审计公网域名（推荐）",
+      "config": {
+        "include_private_zones": false,
+        "include_vpc_details": true,
+        "parallel": true
+      }
+    },
+
+    "scenario_2_all_zones": {
+      "description": "完整审计：包含内部 DNS（需要额外权限）",
+      "config": {
+        "include_private_zones": true,
+        "include_vpc_details": true,
+        "parallel": true
+      }
+    },
+
+    "scenario_3_no_vpc_details": {
+      "description": "快速扫描：包含 Private Zones 但不查询 VPC 名称",
+      "config": {
+        "include_private_zones": true,
+        "include_vpc_details": false,
+        "parallel": true
+      }
+    }
+  }
+}

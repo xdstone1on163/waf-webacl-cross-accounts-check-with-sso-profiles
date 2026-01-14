@@ -17,7 +17,7 @@ import argparse
 
 def load_config_file(config_path: str = 'alb_scan_config.json') -> Optional[Dict]:
     """
-    从配置文件加载扫描配置
+    从配置文件加载扫描配置（支持独立配置文件和统一配置文件）
 
     Args:
         config_path: 配置文件路径
@@ -25,16 +25,36 @@ def load_config_file(config_path: str = 'alb_scan_config.json') -> Optional[Dict
     Returns:
         配置字典，如果文件不存在则返回 None
     """
-    if not os.path.exists(config_path):
-        return None
+    # 优先尝试独立配置文件（向后兼容）
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            return config
+        except Exception as e:
+            print(f"⚠️  警告: 无法读取配置文件 {config_path}: {str(e)}")
 
-    try:
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config = json.load(f)
-        return config
-    except Exception as e:
-        print(f"⚠️  警告: 无法读取配置文件 {config_path}: {str(e)}")
-        return None
+    # 尝试统一配置文件
+    unified_config_path = 'aws_multi_account_scan_config.json'
+    if os.path.exists(unified_config_path):
+        try:
+            with open(unified_config_path, 'r', encoding='utf-8') as f:
+                unified_config = json.load(f)
+
+            # 提取 alb 特定配置，并合并公共配置
+            if 'alb' in unified_config:
+                config = {
+                    'profiles': unified_config.get('profiles', []),
+                    'regions': unified_config.get('regions', {}),
+                    'scan_options': unified_config['alb'].get('scan_options', {}),
+                    'filters': unified_config['alb'].get('filters', {})
+                }
+                print(f"✓ 使用统一配置文件: {unified_config_path}")
+                return config
+        except Exception as e:
+            print(f"⚠️  警告: 无法读取统一配置文件 {unified_config_path}: {str(e)}")
+
+    return None
 
 
 class ALBConfigExtractor:

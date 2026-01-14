@@ -17,24 +17,47 @@ import argparse
 
 def load_config_file(config_path: str = 'waf_scan_config.json') -> Optional[Dict]:
     """
-    从配置文件加载扫描配置
+    从配置文件加载扫描配置（支持独立配置和统一配置）
+
+    优先级：
+    1. 独立配置文件 (waf_scan_config.json) - 向后兼容
+    2. 统一配置文件 (aws_multi_account_scan_config.json) - 新推荐方式
 
     Args:
-        config_path: 配置文件路径
+        config_path: 独立配置文件路径
 
     Returns:
         配置字典，如果文件不存在则返回 None
     """
-    if not os.path.exists(config_path):
-        return None
+    # 优先尝试独立配置文件（向后兼容）
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            return config
+        except Exception as e:
+            print(f"⚠️  警告: 无法读取配置文件 {config_path}: {str(e)}")
 
-    try:
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config = json.load(f)
-        return config
-    except Exception as e:
-        print(f"⚠️  警告: 无法读取配置文件 {config_path}: {str(e)}")
-        return None
+    # 尝试统一配置文件
+    unified_config_path = 'aws_multi_account_scan_config.json'
+    if os.path.exists(unified_config_path):
+        try:
+            with open(unified_config_path, 'r', encoding='utf-8') as f:
+                unified_config = json.load(f)
+
+            # 提取 waf 特定配置，并合并公共配置
+            if 'waf' in unified_config:
+                config = {
+                    'profiles': unified_config.get('profiles', []),
+                    'regions': unified_config.get('regions', {}),
+                    'scan_options': unified_config['waf'].get('scan_options', {})
+                }
+                print(f"✓ 使用统一配置文件: {unified_config_path}")
+                return config
+        except Exception as e:
+            print(f"⚠️  警告: 无法读取统一配置文件 {unified_config_path}: {str(e)}")
+
+    return None
 
 
 class WAFConfigExtractor:
@@ -50,7 +73,7 @@ class WAFConfigExtractor:
         'eu-central-1',   # 欧洲（法兰克福）
     ]
 
-    def __init__(self, profile_names: List[str], regions: List[str] = None, debug: bool = False):
+    def __init__(self, profile_names: List[str], regions: Optional[List[str]] = None, debug: bool = False):
         """
         初始化提取器
 
@@ -458,7 +481,7 @@ class WAFConfigExtractor:
 
         return self.results
 
-    def save_results(self, output_file: str = None):
+    def save_results(self, output_file: Optional[str] = None):
         """保存结果到 JSON 文件"""
         if not output_file:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -602,12 +625,14 @@ def main():
         sys.exit(1)
 
     # 确定要使用的区域
+    regions: Optional[List[str]] = None
     if args.regions:
         regions = args.regions
     elif config and 'regions' in config and 'common' in config['regions']:
         # 从配置文件读取默认区域（使用 common 区域组）
         regions = config['regions']['common']
-        print(f"✓ 从配置文件加载了 {len(regions)} 个扫描区域")
+        if regions:
+            print(f"✓ 从配置文件加载了 {len(regions)} 个扫描区域")
     else:
         # 使用代码中定义的默认区域
         regions = None
