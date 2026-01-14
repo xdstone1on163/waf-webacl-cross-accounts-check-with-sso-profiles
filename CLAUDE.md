@@ -298,8 +298,149 @@ cd ..
 python3 waf_cli.py scan --interactive   # 新工具功能相同
 ```
 
+## ALB 扫描工具（2026-01-14 新增）
+
+独立的 ALB (Application Load Balancer) 多账户扫描工具，与 WAF 工具分离但共享 `core/` 模块。
+
+### 架构
+
+```
+alb_cli.py (统一CLI入口)
+    ├── scan 子命令 → 调用 get_alb_config.py
+    ├── analyze 子命令 → 调用 analyze_alb_config.py
+    └── check-env 子命令 → 复用 EnvironmentChecker
+```
+
+### 核心功能
+
+1. **ALBConfigExtractor** (`get_alb_config.py`):
+   - 使用 boto3 elbv2 API 获取 ALB 列表
+   - 三种扫描模式：quick/standard/full
+   - **反向查询 WAF**：使用 `wafv2.get_web_acl_for_resource(ResourceArn=alb_arn)` 获取 ALB 绑定的 WAF
+   - 支持并行扫描多账户/多区域
+
+2. **ALBConfigAnalyzer** (`analyze_alb_config.py`):
+   - 列出所有 ALB
+   - WAF 覆盖率分析
+   - 找出未绑定 WAF 的 ALB（安全审计）
+   - 按类型/区域统计
+   - CSV 导出
+
+### 常用命令
+
+```bash
+# 快速扫描（基本信息 + WAF）
+python alb_cli.py scan --mode quick
+
+# 标准扫描（默认，+ 监听器 + 目标组）
+python alb_cli.py scan -p profile1 profile2
+
+# 完整扫描（+ 规则 + 健康检查）
+python alb_cli.py scan --mode full
+
+# 分析 WAF 覆盖率
+python alb_cli.py analyze alb_config_*.json --waf-coverage
+
+# 找出未绑定 WAF 的 ALB
+python alb_cli.py analyze alb_config_*.json --no-waf
+
+# 导出 CSV
+python alb_cli.py analyze alb_config_*.json --csv alb_report.csv
+```
+
+### 扫描模式
+
+- **quick**: 基本信息 + WAF 关联（最快）
+- **standard**: + 监听器 + 目标组 + 安全组详情（默认）
+- **full**: + 监听器规则 + 目标健康状态（最完整但较慢）
+
+### WAF 关联查询
+
+ALB 工具使用**反向查询**方式：从 ALB → 查询关联的 WAF
+
+```python
+# 关键实现（get_alb_config.py:92-131）
+wafv2 = session.client('wafv2', region_name=region)
+response = wafv2.get_web_acl_for_resource(ResourceArn=alb_arn)
+# 返回: {'has_waf': True/False, 'WebACL': {...}}
+```
+
+与 WAF 工具的查询方向相反：
+- **WAF 工具**: WAF ACL → 找关联的 ALB (使用 `list_resources_for_web_acl`)
+- **ALB 工具**: ALB → 找关联的 WAF (使用 `get_web_acl_for_resource`)
+
+### 必需的 IAM 权限（ALB 工具）
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "elasticloadbalancing:DescribeLoadBalancers",
+        "elasticloadbalancing:DescribeListeners",
+        "elasticloadbalancing:DescribeRules",
+        "elasticloadbalancing:DescribeTargetGroups",
+        "elasticloadbalancing:DescribeTargetHealth",
+        "wafv2:GetWebACLForResource",
+        "ec2:DescribeSecurityGroups",
+        "sts:GetCallerIdentity"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+### 配置文件
+
+- `alb_scan_config.json`: ALB 扫描配置（profiles、regions、scan_options）
+- `alb_scan_config.json.example`: 示例模板
+- **注意**: `alb_config_*.json` 包含敏感信息，已在 `.gitignore` 中
+
+### JSON 输出格式
+
+```json
+[
+  {
+    "profile": "AdministratorAccess-123456",
+    "account_info": {"account_id": "...", "arn": "..."},
+    "scan_time": "2026-01-14T...",
+    "scan_mode": "standard",
+    "regions": [
+      {
+        "region": "us-east-1",
+        "load_balancers": [
+          {
+            "basic_info": {
+              "LoadBalancerName": "my-alb",
+              "LoadBalancerArn": "...",
+              "DNSName": "my-alb-xxx.us-east-1.elb.amazonaws.com",
+              "Type": "application",
+              "FriendlyType": "Application Load Balancer",
+              "State": {"Code": "active"},
+              "VpcId": "vpc-xxx",
+              "SecurityGroups": ["sg-xxx"]
+            },
+            "waf_association": {
+              "has_waf": true,
+              "WebACL": {"Name": "my-waf", "Id": "...", "ARN": "..."}
+            },
+            "listeners": [...],
+            "target_groups": [...],
+            "security_groups_detail": [...]
+          }
+        ]
+      }
+    ]
+  }
+]
+```
+
 ## 最近改动
 
+- 2026-01-14: **新增 ALB 扫描工具** - 独立的 ALB 多账户扫描和 WAF 审计工具
 - 2026-01-09: **跨平台支持** - 添加 Windows/macOS/Linux 统一支持，创建 waf_cli.py 和 core 模块
 - 2026-01-08: 修复 CloudFront distribution 关联获取问题，使用 CloudFront API 替代 WAFv2 API
 - 2026-01-08: 修复 datetime.utcnow() deprecation warning

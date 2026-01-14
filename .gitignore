@@ -1,11 +1,17 @@
-# AWS WAF 配置提取工具 - Git 忽略文件
+# AWS WAF/ALB 配置提取工具 - Git 忽略文件
 
 # 输出的 WAF 配置文件（可能包含敏感信息）
 waf_config_*.json
+
+# 输出的 ALB 配置文件（可能包含敏感信息）
+alb_config_*.json
+
+# 其他 JSON 文件
 *.json
 
 # 但允许配置模板文件
 !waf_scan_config.json.example
+!alb_scan_config.json.example
 
 # Python
 __pycache__/
@@ -43,6 +49,7 @@ Desktop.ini
 
 # CSV 导出文件（可能包含敏感信息）
 waf_*.csv
+alb_*.csv
 *_report.csv
 
 # 本地配置文件
