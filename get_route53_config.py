@@ -69,7 +69,6 @@ class Route53ConfigExtractor:
     CLIENT_REGION = 'us-east-1'
 
     def __init__(self, profile_names: List[str], regions: Optional[List[str]] = None,
-                 include_private_zones: bool = False, include_vpc_details: bool = True,
                  debug: bool = False):
         """
         初始化提取器
@@ -77,13 +76,11 @@ class Route53ConfigExtractor:
         Args:
             profile_names: SSO profile 名称列表
             regions: 区域列表（Route53 是全局服务，此参数会被忽略但保留接口兼容性）
-            include_private_zones: 是否包含私有 Hosted Zones（默认 False，只扫描 Public Zones）
-            include_vpc_details: 是否获取私有 Zone 的 VPC 详细信息（需要额外权限）
             debug: 是否启用调试模式
+
+        注意: 只扫描 Public Hosted Zones（Global level），不扫描 Private Zones（VPC level）
         """
         self.profile_names = profile_names
-        self.include_private_zones = include_private_zones
-        self.include_vpc_details = include_vpc_details
         self.results = []
         self.debug = debug
 
@@ -191,60 +188,6 @@ class Route53ConfigExtractor:
             alias_info['TargetType'] = 'Unknown (possibly another Route53 record)'
 
         return alias_info
-
-    def enrich_vpc_info(self, session: boto3.Session, vpcs: List[Dict]) -> List[Dict]:
-        """
-        丰富 VPC 信息（添加 VPC 名称）
-
-        Args:
-            session: boto3 会话
-            vpcs: VPC 列表（包含 VPCId 和 VPCRegion）
-
-        Returns:
-            丰富后的 VPC 列表
-        """
-        if not self.include_vpc_details:
-            return vpcs
-
-        enriched_vpcs = []
-
-        for vpc in vpcs:
-            vpc_id = vpc.get('VPCId')
-            vpc_region = vpc.get('VPCRegion')
-
-            try:
-                ec2 = session.client('ec2', region_name=vpc_region)
-                response = ec2.describe_vpcs(VpcIds=[vpc_id])
-
-                vpc_detail = response['Vpcs'][0]
-                vpc_name = 'N/A'
-
-                # 从 Tags 中提取 Name
-                for tag in vpc_detail.get('Tags', []):
-                    if tag['Key'] == 'Name':
-                        vpc_name = tag['Value']
-                        break
-
-                enriched_vpcs.append({
-                    'VPCId': vpc_id,
-                    'VPCRegion': vpc_region,
-                    'VPCName': vpc_name,
-                    'CidrBlock': vpc_detail.get('CidrBlock')
-                })
-
-            except Exception as e:
-                # 如果没有权限或跨账户 VPC，保留原始信息
-                enriched_vpcs.append({
-                    'VPCId': vpc_id,
-                    'VPCRegion': vpc_region,
-                    'VPCName': 'N/A (无权限或跨账户)',
-                    'Error': str(e)
-                })
-
-                if self.debug:
-                    print(f"      [DEBUG] 无法获取 VPC 详情: {vpc_id} - {str(e)}")
-
-        return enriched_vpcs
 
     def get_zone_records(self, session: boto3.Session, zone_id: str, zone_name: str) -> List[Dict]:
         """
@@ -355,13 +298,8 @@ class Route53ConfigExtractor:
 
             zone_detail = {
                 'HostedZone': response.get('HostedZone'),
-                'DelegationSet': response.get('DelegationSet'),  # NS 记录
-                'VPCs': response.get('VPCs', [])  # 私有 Zone 的 VPC 关联
+                'DelegationSet': response.get('DelegationSet')  # NS 记录
             }
-
-            # 如果是私有 Zone，获取 VPC 名称（可选，需要 ec2:DescribeVpcs 权限）
-            if zone_detail['VPCs']:
-                zone_detail['VPCs'] = self.enrich_vpc_info(session, zone_detail['VPCs'])
 
             return zone_detail
 
@@ -394,19 +332,18 @@ class Route53ConfigExtractor:
                     zone_name = zone['Name']
                     is_private = zone['Config'].get('PrivateZone', False)
 
-                    # 如果不包含 private zones，跳过私有 Zone
-                    if is_private and not self.include_private_zones:
+                    # 只扫描 Public Zones，跳过 Private Zones
+                    if is_private:
                         if self.debug:
-                            print(f"    ⊘ 跳过私有 Zone: {zone_name} (使用 --include-private-zones 可启用)")
+                            print(f"    ⊘ 跳过私有 Zone (VPC level): {zone_name}")
                         continue
 
-                    zone_type = "私有" if is_private else "公有"
                     if self.debug:
-                        print(f"    处理 {zone_type} Zone: {zone_name} ({zone_id})")
+                        print(f"    处理公有 Zone: {zone_name} ({zone_id})")
                     else:
-                        print(f"    扫描 {zone_type} Zone: {zone_name}")
+                        print(f"    扫描公有 Zone: {zone_name}")
 
-                    # 获取详细信息（包含 VPC 关联）
+                    # 获取详细信息
                     zone_details = self.get_zone_details(session, zone_id)
 
                     # 获取 DNS 记录
@@ -416,7 +353,6 @@ class Route53ConfigExtractor:
                     zone_info = {
                         'basic_info': zone,
                         'delegation_set': zone_details.get('DelegationSet'),
-                        'vpcs': zone_details.get('VPCs', []),
                         'records': records,
                         'record_count': len(records),
                         'record_type_summary': self._summarize_record_types(records)
@@ -464,21 +400,17 @@ class Route53ConfigExtractor:
             print(f"\n正在扫描 Hosted Zones...")
             zones = self.scan_hosted_zones(session)
 
-            # 统计信息
+            # 统计信息（只包含 Public Zones）
             total_zones = len(zones)
-            public_zones = sum(1 for z in zones if not z['basic_info']['Config'].get('PrivateZone', False))
-            private_zones = total_zones - public_zones
             total_records = sum(z['record_count'] for z in zones)
 
             summary = {
-                'total_zones': total_zones,
-                'public_zones': public_zones,
-                'private_zones': private_zones,
+                'total_public_zones': total_zones,
                 'total_records': total_records
             }
 
             print(f"\n✓ 扫描完成:")
-            print(f"  - 总 Hosted Zones: {total_zones} (公有: {public_zones}, 私有: {private_zones})")
+            print(f"  - 公有 Hosted Zones: {total_zones}")
             print(f"  - 总 DNS 记录: {total_records}")
 
             # 构建账户结果
@@ -504,9 +436,7 @@ class Route53ConfigExtractor:
                 'scan_time': datetime.now(timezone.utc).isoformat(),
                 'hosted_zones': [],
                 'summary': {
-                    'total_zones': 0,
-                    'public_zones': 0,
-                    'private_zones': 0,
+                    'total_public_zones': 0,
                     'total_records': 0
                 }
             }
@@ -568,29 +498,23 @@ class Route53ConfigExtractor:
             print(f"✗ 保存结果失败: {str(e)}")
 
     def print_summary(self):
-        """打印总体统计摘要"""
+        """打印总体统计摘要（只包含 Public Zones）"""
         if not self.results:
             return
 
-        total_zones = 0
         total_public_zones = 0
-        total_private_zones = 0
         total_records = 0
 
         for account in self.results:
             summary = account.get('summary', {})
-            total_zones += summary.get('total_zones', 0)
-            total_public_zones += summary.get('public_zones', 0)
-            total_private_zones += summary.get('private_zones', 0)
+            total_public_zones += summary.get('total_public_zones', 0)
             total_records += summary.get('total_records', 0)
 
         print(f"\n{'='*80}")
         print(f"总体统计")
         print(f"{'='*80}")
         print(f"扫描账户数: {len(self.results)}")
-        print(f"总 Hosted Zones: {total_zones}")
-        print(f"  - 公有 Zones: {total_public_zones}")
-        print(f"  - 私有 Zones: {total_private_zones}")
+        print(f"公有 Hosted Zones: {total_public_zones}")
         print(f"总 DNS 记录: {total_records}")
 
 
@@ -614,14 +538,6 @@ def main():
     parser.add_argument('--no-parallel',
                         action='store_true',
                         help='禁用并行扫描（串行处理所有账户）')
-
-    parser.add_argument('--include-private-zones',
-                        action='store_true',
-                        help='包含私有 Hosted Zones（默认只扫描公有 Zones）')
-
-    parser.add_argument('--no-vpc-details',
-                        action='store_true',
-                        help='不获取私有 Zone 的 VPC 详细信息（跳过 ec2:DescribeVpcs 调用）')
 
     parser.add_argument('-o', '--output',
                         help='指定输出文件名（默认自动生成）')
@@ -648,20 +564,10 @@ def main():
         region_config = config.get('regions', {})
         regions = region_config.get('common', [])
 
-    # 确定其他选项
-    include_private_zones = args.include_private_zones
-    include_vpc_details = not args.no_vpc_details
-    if config and 'scan_options' in config:
-        scan_opts = config['scan_options']
-        include_private_zones = scan_opts.get('include_private_zones', include_private_zones)
-        include_vpc_details = scan_opts.get('include_vpc_details', include_vpc_details)
-
-    # 创建提取器
+    # 创建提取器（只扫描 Public Zones）
     extractor = Route53ConfigExtractor(
         profile_names=profiles,
         regions=regions,
-        include_private_zones=include_private_zones,
-        include_vpc_details=include_vpc_details,
         debug=args.debug
     )
 

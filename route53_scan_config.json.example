@@ -82,17 +82,8 @@
   "scan_options": {
     "parallel": true,
     "max_workers": 3,
-    "include_private_zones": false,
-    "include_vpc_details": true,
     "output_format": "json",
     "debug": false
-  },
-
-  "filters": {
-    "_note": "过滤选项（未来可扩展）",
-    "zone_types": ["public", "private"],
-    "zone_name_pattern": null,
-    "exclude_system_records": false
   },
 
   "_usage_notes": {
@@ -100,20 +91,7 @@
 
     "regions": "Route53 是全局服务，此配置项会被忽略。保留是为了与 WAF/ALB 工具保持配置文件结构一致",
 
-    "include_private_zones": [
-      "默认 false - 推荐：只扫描 Public Hosted Zones（Global level，面向互联网的域名）",
-      "设为 true - 高级：同时扫描 Private Hosted Zones（VPC level，内部 DNS）",
-      "⚠️  启用 Private Zones 可能遇到的问题：",
-      "  1. 跨账户 VPC 权限问题（Private Zone 可以关联其他账户的 VPC）",
-      "  2. 跨区域 VPC 权限问题（Private Zone 可以关联不同区域的 VPC）",
-      "  3. 需要额外的 ec2:DescribeVpcs 权限（如果 include_vpc_details=true）"
-    ],
-
-    "include_vpc_details": [
-      "仅在 include_private_zones=true 时有效",
-      "设为 true - 尝试获取 VPC 名称（需要 ec2:DescribeVpcs 权限）",
-      "设为 false - 只记录 VPC ID，不查询名称（跳过权限检查）"
-    ],
+    "scan_scope": "只扫描 Public Hosted Zones（Global level），不扫描 Private Zones（VPC level）",
 
     "parallel": "是否并行扫描多个账户（推荐 true）",
 
@@ -125,47 +103,12 @@
   "_iam_permissions_required": {
     "_note": "扫描所需的最小 IAM 权限",
 
-    "basic_scan": [
+    "required": [
       "route53:ListHostedZones",
       "route53:GetHostedZone",
       "route53:ListResourceRecordSets",
       "route53:ListTagsForResource",
       "sts:GetCallerIdentity"
-    ],
-
-    "optional_for_private_zones": [
-      "ec2:DescribeVpcs - 仅在 include_private_zones=true 且 include_vpc_details=true 时需要"
     ]
-  },
-
-  "_examples": {
-    "_note": "常见使用场景示例",
-
-    "scenario_1_public_only": {
-      "description": "标准场景：只审计公网域名（推荐）",
-      "config": {
-        "include_private_zones": false,
-        "include_vpc_details": true,
-        "parallel": true
-      }
-    },
-
-    "scenario_2_all_zones": {
-      "description": "完整审计：包含内部 DNS（需要额外权限）",
-      "config": {
-        "include_private_zones": true,
-        "include_vpc_details": true,
-        "parallel": true
-      }
-    },
-
-    "scenario_3_no_vpc_details": {
-      "description": "快速扫描：包含 Private Zones 但不查询 VPC 名称",
-      "config": {
-        "include_private_zones": true,
-        "include_vpc_details": false,
-        "parallel": true
-      }
-    }
   }
 }

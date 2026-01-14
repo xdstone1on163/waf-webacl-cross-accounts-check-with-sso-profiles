@@ -111,14 +111,11 @@ python alb_cli.py analyze alb_config_*.json --no-waf
 
 **Route53 工具（新增）:**
 ```bash
-# 扫描（使用配置文件，默认只扫描 Public Zones）
+# 扫描（使用配置文件，只扫描 Public Zones）
 python route53_cli.py scan
 
 # 扫描指定账户
 python route53_cli.py scan -p profile1 profile2
-
-# 包含私有 Zones（需要额外的 VPC 权限）
-python route53_cli.py scan --include-private-zones
 
 # 分析 - 列出所有 Zones
 python route53_cli.py analyze route53_config_*.json --list
@@ -244,13 +241,12 @@ python3 analyze_waf_config.py waf_config_*.json --list
 ✅ 智能提示不同扫描模式的差异
 
 ### Route53 工具（新增）
-✅ 跨账号扫描 Hosted Zone 和 DNS Records
+✅ 跨账号扫描 Public Hosted Zone 和 DNS Records
 ✅ **全局服务支持**：Route53 是全局服务，自动处理区域参数
-✅ **智能 Zone 过滤**：默认只扫描 Public Zones（Global level），可选包含 Private Zones（VPC level）
+✅ **只扫描 Public Zones**：专注于 Global level 的公有域名，不扫描 VPC level 的私有 Zone
 ✅ **完整的 DNS 记录提取**：A/AAAA/CNAME/MX/TXT/NS/SOA 等所有类型
 ✅ **7 种路由策略解析**：Simple/Weighted/Latency/Failover/Geolocation/Geoproximity/Multivalue
 ✅ **Alias 记录智能推断**：自动识别 ALB/CloudFront/S3/API Gateway 等目标类型
-✅ **私有 Zone 支持**：可选扫描 Private Zones 并提取 VPC 关联（需要额外权限）
 ✅ **API 分页和限流保护**：自动处理大量记录和 API 限流重试
 ✅ 按记录类型/Zone 类型统计分析
 ✅ 路由策略使用情况统计
@@ -380,20 +376,9 @@ aws_secret_access_key = YOUR_SECRET_KEY
 
 **权限说明**：
 - `route53:ListHostedZones` - 列出所有 Hosted Zones
-- `route53:GetHostedZone` - 获取 Zone 详情（包含 VPC 关联）
+- `route53:GetHostedZone` - 获取 Zone 详情
 - `route53:ListResourceRecordSets` - 获取 DNS 记录
 - `route53:ListTagsForResource` - 获取 Zone 标签
-
-**可选权限**（仅在扫描 Private Zones 时需要）：
-```json
-{
-  "Effect": "Allow",
-  "Action": [
-    "ec2:DescribeVpcs"
-  ],
-  "Resource": "*"
-}
-```
 
 可选（如需列出所有账户）：
 ```json
@@ -440,7 +425,7 @@ vi aws_multi_account_scan_config.json
     "scan_options": { "mode": "standard", "parallel": true }
   },
   "route53": {
-    "scan_options": { "include_private_zones": false }
+    "scan_options": { "parallel": true, "max_workers": 3 }
   }
 }
 ```

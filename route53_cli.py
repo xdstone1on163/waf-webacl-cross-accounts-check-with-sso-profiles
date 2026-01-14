@@ -61,12 +61,6 @@ def cmd_scan(args):
     if args.no_parallel:
         cmd.append('--no-parallel')
 
-    if args.include_private_zones:
-        cmd.append('--include-private-zones')
-
-    if args.no_vpc_details:
-        cmd.append('--no-vpc-details')
-
     return run_command(cmd, "Route53 配置扫描")
 
 
@@ -192,12 +186,6 @@ def main():
 
     scan_parser.add_argument('--no-parallel', action='store_true',
                             help='禁用并行扫描')
-
-    scan_parser.add_argument('--include-private-zones', action='store_true',
-                            help='包含私有 Hosted Zones（默认只扫描公有 Zones）')
-
-    scan_parser.add_argument('--no-vpc-details', action='store_true',
-                            help='不获取私有 Zone 的 VPC 详细信息（跳过 ec2:DescribeVpcs 调用）')
 
     # ========== analyze 子命令 ==========
     analyze_parser = subparsers.add_parser('analyze', help='分析 Route53 配置')

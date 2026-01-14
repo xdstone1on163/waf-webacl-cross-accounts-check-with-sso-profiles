@@ -116,21 +116,13 @@
 
   "route53": {
     "_description": "Route53 Hosted Zone 和 DNS Records 扫描配置",
-    "_note": "Route53 是全局服务，不受 regions 配置影响",
+    "_note": "Route53 是全局服务，不受 regions 配置影响。只扫描 Public Zones（Global level），不扫描 Private Zones（VPC level）",
 
     "scan_options": {
       "parallel": true,
       "max_workers": 3,
-      "include_private_zones": false,
-      "include_vpc_details": true,
       "output_format": "json",
       "debug": false
-    },
-
-    "filters": {
-      "zone_types": ["public", "private"],
-      "zone_name_pattern": null,
-      "exclude_system_records": false
     }
   },
 
@@ -151,8 +143,7 @@
     },
 
     "route53": {
-      "include_private_zones": "默认 false，只扫描 Public Zones（推荐）。设为 true 会扫描 Private Zones（VPC level，可能遇到跨账户权限问题）",
-      "include_vpc_details": "仅在 include_private_zones=true 时有效。需要 ec2:DescribeVpcs 权限"
+      "scan_scope": "只扫描 Public Hosted Zones（Global level），不扫描 Private Zones（VPC level）"
     }
   },
 
@@ -181,7 +172,6 @@
       "route53:GetHostedZone",
       "route53:ListResourceRecordSets",
       "route53:ListTagsForResource",
-      "ec2:DescribeVpcs (可选，仅在扫描 Private Zones 时需要)",
       "sts:GetCallerIdentity"
     ]
   },
