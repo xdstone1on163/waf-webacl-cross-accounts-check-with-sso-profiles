@@ -1148,26 +1148,35 @@ python route53_cli.py scan
 
 #### Step 2: 生成关联分析报告
 
+**方式 1：使用 latest 文件（推荐，2026-01-16 新增）**
+
+所有扫描工具现在会自动生成 `*_latest.json` 文件，无需手动指定文件名：
+
 ```bash
-# 基本用法（使用最新的扫描结果）
+# 使用 latest 文件（最简单）
+python security_audit_cli.py correlate --use-latest
+
+# 同时输出 JSON 数据
+python security_audit_cli.py correlate --use-latest --json
+
+# 指定输出文件名
+python security_audit_cli.py correlate --use-latest -o my_report.html
+```
+
+**方式 2：手动指定文件（传统方式）**
+
+```bash
+# 指定带时间戳的文件
 python security_audit_cli.py correlate \
     waf_config_20260116_080000.json \
     alb_config_20260116_080500.json \
     route53_config_20260116_081000.json
 
-# 指定输出文件名
+# 使用通配符（需要确保只有一个匹配的文件）
 python security_audit_cli.py correlate \
     waf_config_*.json \
     alb_config_*.json \
-    route53_config_*.json \
-    -o my_security_report.html
-
-# 同时输出 JSON 数据（用于调试）
-python security_audit_cli.py correlate \
-    waf_config_*.json \
-    alb_config_*.json \
-    route53_config_*.json \
-    --json
+    route53_config_*.json
 
 # 调试模式（显示详细处理过程）
 python security_audit_cli.py correlate \

@@ -159,6 +159,47 @@ python3 analyze_waf_config.py waf_config_*.json --analyze
 python3 analyze_waf_config.py waf_config_*.json --csv report.csv
 ```
 
+### 双文件输出功能（2026-01-16 新增）
+
+**默认行为**：所有扫描工具现在同时生成两个文件：
+- 带时间戳的历史文件：`waf_config_20260116_143025.json`（保留历史记录）
+- 固定名称的 latest 文件：`waf_config_latest.json`（便于引用）
+
+```bash
+# 默认扫描 - 生成两个文件
+python waf_cli.py scan -p my-profile
+# 输出:
+#   ✓ 结果已保存到: waf_config_20260116_143025.json
+#   ✓ Latest 文件已保存到: waf_config_latest.json
+#   ⚠️ 注意: waf_config_latest.json 会在下次扫描时被覆盖
+
+# 只生成带时间戳的文件（禁用 latest 文件）
+python waf_cli.py scan -p my-profile --no-latest
+
+# 运行所有扫描
+python waf_cli.py scan
+python alb_cli.py scan
+python route53_cli.py scan
+
+# 使用 latest 文件进行关联分析（简化命令）
+python security_audit_cli.py correlate --use-latest
+
+# 或手动指定文件（传统方式）
+python security_audit_cli.py correlate waf_config_20260116_143025.json alb_config_20260116_143030.json route53_config_20260116_143035.json
+```
+
+**一键扫描和分析工作流**：
+
+```bash
+#!/bin/bash
+# 一键扫描所有服务并生成安全审计报告
+python waf_cli.py scan && \
+python alb_cli.py scan && \
+python route53_cli.py scan && \
+python security_audit_cli.py correlate --use-latest && \
+echo "✓ 安全审计报告已生成"
+```
+
 ### AWS SSO 认证
 
 ```bash
@@ -440,6 +481,7 @@ response = wafv2.get_web_acl_for_resource(ResourceArn=alb_arn)
 
 ## 最近改动
 
+- 2026-01-16: **双文件输出功能** - 所有扫描工具现在同时生成带时间戳的历史文件和固定名称的 latest 文件，简化关联分析工作流。添加 `--no-latest` 参数可禁用此功能，添加 `--use-latest` 参数到 security_audit_cli.py 自动使用 latest 文件
 - 2026-01-14: **新增 ALB 扫描工具** - 独立的 ALB 多账户扫描和 WAF 审计工具
 - 2026-01-09: **跨平台支持** - 添加 Windows/macOS/Linux 统一支持，创建 waf_cli.py 和 core 模块
 - 2026-01-08: 修复 CloudFront distribution 关联获取问题，使用 CloudFront API 替代 WAFv2 API

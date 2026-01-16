@@ -18,6 +18,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
 import argparse
 from botocore.exceptions import ClientError
+from core.file_utils import save_scan_results
 
 
 def load_config_file(config_path: str = 'route53_scan_config.json') -> Optional[Dict]:
@@ -476,26 +477,25 @@ class Route53ConfigExtractor:
 
         return self.results
 
-    def save_results(self, output_file: Optional[str] = None):
+    def save_results(self, output_file: Optional[str] = None, save_latest: bool = True):
         """
         保存结果到 JSON 文件
 
         Args:
-            output_file: 输出文件名，如果为 None 则自动生成
+            output_file: 输出文件名，如果为 None 则自动生成带时间戳的文件名
+            save_latest: 是否同时保存固定名称的 latest 文件（默认 True）
+
+        Returns:
+            主输出文件名（带时间戳）
         """
-        if not output_file:
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            output_file = f'route53_config_{timestamp}.json'
-
-        try:
-            with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(self.results, f, indent=2, ensure_ascii=False)
-
-            print(f"\n{'='*80}")
-            print(f"✓ 结果已保存到: {output_file}")
-            print(f"{'='*80}")
-        except Exception as e:
-            print(f"✗ 保存结果失败: {str(e)}")
+        main_file, _ = save_scan_results(
+            data=self.results,
+            prefix='route53_config',
+            output_file=output_file,
+            save_latest=save_latest,
+            verbose=True
+        )
+        return main_file
 
     def print_summary(self):
         """打印总体统计摘要（只包含 Public Zones）"""
@@ -542,6 +542,10 @@ def main():
     parser.add_argument('-o', '--output',
                         help='指定输出文件名（默认自动生成）')
 
+    parser.add_argument('--no-latest',
+                        action='store_true',
+                        help='只生成带时间戳的文件，不生成 latest 文件')
+
     args = parser.parse_args()
 
     # 加载配置文件
@@ -582,7 +586,7 @@ def main():
     extractor.print_summary()
 
     # 保存结果
-    extractor.save_results(args.output)
+    extractor.save_results(args.output, save_latest=not args.no_latest)
 
 
 if __name__ == '__main__':

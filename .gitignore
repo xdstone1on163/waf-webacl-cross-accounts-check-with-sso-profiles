@@ -2,12 +2,15 @@
 
 # 输出的 WAF 配置文件（可能包含敏感信息）
 waf_config_*.json
+waf_config_latest.json
 
 # 输出的 ALB 配置文件（可能包含敏感信息）
 alb_config_*.json
+alb_config_latest.json
 
 # 输出的 Route53 配置文件（可能包含敏感信息）
 route53_config_*.json
+route53_config_latest.json
 
 # 其他 JSON 文件
 *.json

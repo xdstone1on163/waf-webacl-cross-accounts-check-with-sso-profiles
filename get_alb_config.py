@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import argparse
+from core.file_utils import save_scan_results
 
 
 def load_config_file(config_path: str = 'alb_scan_config.json') -> Optional[Dict]:
@@ -453,25 +454,25 @@ class ALBConfigExtractor:
 
         return self.results
 
-    def save_results(self, output_file: str = None):
+    def save_results(self, output_file: Optional[str] = None, save_latest: bool = True):
         """
         保存扫描结果到 JSON 文件
 
         Args:
-            output_file: 输出文件路径，默认自动生成
+            output_file: 输出文件名，如果为 None 则自动生成带时间戳的文件名
+            save_latest: 是否同时保存固定名称的 latest 文件（默认 True）
+
+        Returns:
+            主输出文件名（带时间戳）
         """
-        if not output_file:
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            output_file = f'alb_config_{timestamp}.json'
-
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(self.results, f, indent=2, ensure_ascii=False, default=str)
-
-        print(f"\n{'='*80}")
-        print(f"✓ 结果已保存到: {output_file}")
-        print(f"{'='*80}")
-
-        return output_file
+        main_file, _ = save_scan_results(
+            data=self.results,
+            prefix='alb_config',
+            output_file=output_file,
+            save_latest=save_latest,
+            verbose=True
+        )
+        return main_file
 
     def print_summary(self):
         """打印扫描摘要"""
@@ -525,6 +526,8 @@ def main():
     parser.add_argument('-o', '--output', help='输出文件路径')
     parser.add_argument('--debug', action='store_true', help='启用调试模式')
     parser.add_argument('--no-parallel', action='store_true', help='禁用并行扫描')
+    parser.add_argument('--no-latest', action='store_true',
+                        help='只生成带时间戳的文件，不生成 latest 文件')
 
     args = parser.parse_args()
 
@@ -571,7 +574,7 @@ def main():
     extractor.print_summary()
 
     # 保存结果
-    extractor.save_results(args.output)
+    extractor.save_results(args.output, save_latest=not args.no_latest)
 
     return 0
 

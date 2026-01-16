@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import argparse
+from core.file_utils import save_scan_results
 
 
 def load_config_file(config_path: str = 'waf_scan_config.json') -> Optional[Dict]:
@@ -481,20 +482,25 @@ class WAFConfigExtractor:
 
         return self.results
 
-    def save_results(self, output_file: Optional[str] = None):
-        """保存结果到 JSON 文件"""
-        if not output_file:
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            output_file = f'waf_config_{timestamp}.json'
+    def save_results(self, output_file: Optional[str] = None, save_latest: bool = True):
+        """
+        保存结果到 JSON 文件
 
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(self.results, f, indent=2, ensure_ascii=False, default=str)
+        Args:
+            output_file: 输出文件名，如果为 None 则自动生成带时间戳的文件名
+            save_latest: 是否同时保存固定名称的 latest 文件（默认 True）
 
-        print(f"\n{'='*80}")
-        print(f"✓ 结果已保存到: {output_file}")
-        print(f"{'='*80}")
-
-        return output_file
+        Returns:
+            主输出文件名（带时间戳）
+        """
+        main_file, _ = save_scan_results(
+            data=self.results,
+            prefix='waf_config',
+            output_file=output_file,
+            save_latest=save_latest,
+            verbose=True
+        )
+        return main_file
 
     def print_summary(self):
         """打印扫描摘要"""
@@ -600,6 +606,12 @@ def main():
         help='启用调试模式，显示详细的资源获取信息'
     )
 
+    parser.add_argument(
+        '--no-latest',
+        action='store_true',
+        help='只生成带时间戳的文件，不生成 latest 文件'
+    )
+
     args = parser.parse_args()
 
     # 尝试从配置文件加载默认配置
@@ -648,13 +660,13 @@ def main():
     try:
         extractor.scan_all_accounts(parallel=not args.no_parallel)
         extractor.print_summary()
-        extractor.save_results(args.output)
+        extractor.save_results(args.output, save_latest=not args.no_latest)
 
     except KeyboardInterrupt:
         print("\n\n用户中断扫描")
         if extractor.results:
             print("保存已完成的部分结果...")
-            extractor.save_results(args.output)
+            extractor.save_results(args.output, save_latest=not args.no_latest)
     except Exception as e:
         print(f"\n✗ 发生错误: {str(e)}")
         import traceback

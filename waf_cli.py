@@ -83,6 +83,10 @@ def main():
         '--no-parallel', action='store_true',
         help='禁用并行扫描'
     )
+    scan_parser.add_argument(
+        '--no-latest', action='store_true',
+        help='只生成带时间戳的文件，不生成 latest 文件'
+    )
 
     # ===== analyze 子命令 =====
     analyze_parser = subparsers.add_parser('analyze', help='分析 WAF 配置')
@@ -165,6 +169,8 @@ def handle_scan_command(args):
             cmd.append('--debug')
         if args.no_parallel:
             cmd.append('--no-parallel')
+        if args.no_latest:
+            cmd.append('--no-latest')
 
         subprocess.run(cmd, shell=(platform.system() == 'Windows'))
 

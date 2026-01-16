@@ -47,9 +47,14 @@ Examples:
         'correlate',
         help='Correlate and visualize security configurations'
     )
-    correlate_parser.add_argument('waf_json', help='WAF configuration JSON file')
-    correlate_parser.add_argument('alb_json', help='ALB configuration JSON file')
-    correlate_parser.add_argument('route53_json', help='Route53 configuration JSON file')
+    correlate_parser.add_argument('waf_json', nargs='?', help='WAF configuration JSON file')
+    correlate_parser.add_argument('alb_json', nargs='?', help='ALB configuration JSON file')
+    correlate_parser.add_argument('route53_json', nargs='?', help='Route53 configuration JSON file')
+    correlate_parser.add_argument(
+        '--use-latest',
+        action='store_true',
+        help='自动使用 *_latest.json 文件（无需手动指定文件名）'
+    )
     correlate_parser.add_argument(
         '-o', '--output',
         help='Output HTML file (default: security_audit_report_YYYYMMDD_HHMMSS.html)',
@@ -89,6 +94,22 @@ def run_correlate(args):
     """执行关联分析和可视化"""
     print("AWS Security Configuration Correlator")
     print("=" * 60)
+
+    # 处理 --use-latest 参数
+    if args.use_latest:
+        # 自动使用 latest 文件
+        args.waf_json = 'waf_config_latest.json'
+        args.alb_json = 'alb_config_latest.json'
+        args.route53_json = 'route53_config_latest.json'
+        print("\n使用 latest 文件模式")
+    else:
+        # 验证必须手动指定三个文件
+        if not args.waf_json or not args.alb_json or not args.route53_json:
+            print("\n✗ 错误: 必须指定三个 JSON 文件，或使用 --use-latest 参数", file=sys.stderr)
+            print("\n使用示例:", file=sys.stderr)
+            print("  方式 1 (手动指定): python security_audit_cli.py correlate waf.json alb.json route53.json", file=sys.stderr)
+            print("  方式 2 (使用 latest): python security_audit_cli.py correlate --use-latest", file=sys.stderr)
+            sys.exit(1)
 
     # 生成输出文件名
     if not args.output:
