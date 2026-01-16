@@ -335,7 +335,7 @@ pip install boto3 colorama
 aws configure sso
 
 # 登录（在运行脚本前）
-aws sso login --profile AdministratorAccess-275261018177
+aws sso login --profile AdministratorAccess-123456789012
 ```
 
 #### 方式 B：IAM 用户凭证
@@ -547,7 +547,7 @@ python waf_cli.py scan -p custom-profile -r us-east-1
 python3 get_waf_config.py
 
 # 指定单个账户
-python3 get_waf_config.py -p AdministratorAccess-275261018177
+python3 get_waf_config.py -p AdministratorAccess-123456789012
 
 # 指定多个账户
 python3 get_waf_config.py -p profile1 profile2 profile3
@@ -583,9 +583,9 @@ python3 get_waf_config.py --help
 #### 输出示例
 ```
 ================================================================================
-正在扫描账户: AdministratorAccess-275261018177
+正在扫描账户: AdministratorAccess-123456789012
 ================================================================================
-✓ 账户 ID: 275261018177
+✓ 账户 ID: 123456789012
 
   扫描区域: us-east-1
     检查 CLOUDFRONT scope...
@@ -601,7 +601,7 @@ python3 get_waf_config.py --help
 扫描摘要
 ================================================================================
 
-账户 275261018177 (AdministratorAccess-275261018177):
+账户 123456789012 (AdministratorAccess-123456789012):
   - us-east-1 (CLOUDFRONT): 1 个 Web ACL, 2 个关联资源
   - us-east-1 (REGIONAL): 1 个 Web ACL, 1 个关联资源
   - us-west-2 (REGIONAL): 1 个 Web ACL, 3 个关联资源
@@ -759,9 +759,9 @@ python alb_cli.py scan --no-parallel
 #### 输出示例
 ```
 ================================================================================
-正在扫描账户: AdministratorAccess-813923830882
+正在扫描账户: AdministratorAccess-987654321098
 ================================================================================
-✓ 账户 ID: 813923830882
+✓ 账户 ID: 987654321098
 
   扫描区域: us-east-1
     ✓ 发现 2 个负载均衡器
@@ -772,7 +772,7 @@ python alb_cli.py scan --no-parallel
 扫描摘要
 ================================================================================
 
-账户 813923830882:
+账户 987654321098:
   - us-east-1: 2 个 ALB (1 个有 WAF, 1 个无 WAF)
 
 总计: 2 个 ALB, 1 个有 WAF (50.0%), 1 个无 WAF (50.0%)
@@ -798,7 +798,7 @@ python alb_cli.py analyze alb_config_*.json --stats
 扫描信息
 ================================================================================
 
-账户: 813923830882 (AdministratorAccess-813923830882)
+账户: 987654321098 (AdministratorAccess-987654321098)
   扫描时间: 2026-01-14T08:11:42.839488+00:00
   扫描模式: Full 模式（+ 监听器规则 + 目标健康状态）
 
@@ -840,7 +840,7 @@ WAF 覆盖率分析
 
 按账户统计:
 
-  账户 813923830882:
+  账户 987654321098:
     总 ALB 数: 2
     有 WAF: 1 (50.0%)
     无 WAF: 1 (50.0%)
@@ -862,7 +862,7 @@ python alb_cli.py analyze alb_config_*.json --no-waf
 未绑定 WAF 的 ALB（安全审计）
 ================================================================================
 
-账户: 813923830882
+账户: 987654321098
 
   区域: us-east-1
     ⚠️  bedrock-proxy-no-peering
@@ -921,7 +921,7 @@ python route53_cli.py scan
 #### 指定账户扫描
 ```bash
 # 单个账户
-python route53_cli.py scan -p AdministratorAccess-275261018177
+python route53_cli.py scan -p AdministratorAccess-123456789012
 
 # 多个账户
 python route53_cli.py scan -p profile1 profile2 profile3
@@ -942,9 +942,9 @@ python route53_cli.py scan -o my_route53_config.json
 #### 输出示例
 ```
 ================================================================================
-正在扫描账户: AdministratorAccess-813923830882
+正在扫描账户: AdministratorAccess-987654321098
 ================================================================================
-✓ 账户 ID: 813923830882
+✓ 账户 ID: 987654321098
 
 正在扫描 Hosted Zones...
     扫描公有 Zone: example.com.
@@ -982,7 +982,7 @@ python route53_cli.py analyze route53_config_*.json --list
 Hosted Zones 列表
 ================================================================================
 
-账户: 813923830882 (AdministratorAccess-813923830882)
+账户: 987654321098 (AdministratorAccess-987654321098)
   扫描时间: 2026-01-14T10:00:00.000000+00:00
 
 Zone 1: example.com.
@@ -1403,11 +1403,11 @@ A: 报告是单个 HTML 文件，易于分享：
 ```json
 [
   {
-    "profile": "AdministratorAccess-275261018177",
+    "profile": "AdministratorAccess-123456789012",
     "scan_time": "2026-01-05T14:30:22.123456",
     "account_info": {
-      "account_id": "275261018177",
-      "arn": "arn:aws:sts::275261018177:assumed-role/...",
+      "account_id": "123456789012",
+      "arn": "arn:aws:sts::123456789012:assumed-role/...",
       "user_id": "AROA..."
     },
     "regions": [
@@ -1445,11 +1445,11 @@ A: 报告是单个 HTML 文件，易于分享：
             },
             "associated_resources": [
               {
-                "arn": "arn:aws:cloudfront::275261018177:distribution/E1234567890ABC",
+                "arn": "arn:aws:cloudfront::123456789012:distribution/E1234567890ABC",
                 "partition": "aws",
                 "service": "cloudfront",
                 "region": "",
-                "account_id": "275261018177",
+                "account_id": "123456789012",
                 "resource": "distribution/E1234567890ABC",
                 "resource_type": "distribution",
                 "resource_id": "E1234567890ABC",
@@ -1457,11 +1457,11 @@ A: 报告是单个 HTML 文件，易于分享：
                 "resource_type_api": "CLOUDFRONT"
               },
               {
-                "arn": "arn:aws:elasticloadbalancing:us-east-1:275261018177:loadbalancer/app/my-alb/1234567890abcdef",
+                "arn": "arn:aws:elasticloadbalancing:us-east-1:123456789012:loadbalancer/app/my-alb/1234567890abcdef",
                 "partition": "aws",
                 "service": "elasticloadbalancing",
                 "region": "us-east-1",
-                "account_id": "275261018177",
+                "account_id": "123456789012",
                 "resource": "loadbalancer/app/my-alb/1234567890abcdef",
                 "resource_type": "loadbalancer/app",
                 "resource_id": "my-alb/1234567890abcdef",
@@ -1488,7 +1488,7 @@ A: 报告是单个 HTML 文件，易于分享：
 | `partition` | AWS 分区 | `aws`, `aws-cn`, `aws-us-gov` |
 | `service` | AWS 服务 | `elasticloadbalancing`, `cloudfront`, `apigateway` |
 | `region` | AWS 区域 | `us-east-1`, `ap-northeast-1` |
-| `account_id` | AWS 账户 ID | `275261018177` |
+| `account_id` | AWS 账户 ID | `123456789012` |
 | `resource` | 资源标识符 | `loadbalancer/app/my-alb/...` |
 | `resource_type` | 资源类型 | `loadbalancer/app`, `distribution` |
 | `resource_id` | 资源 ID | `my-alb/1234567890abcdef` |
@@ -1509,7 +1509,7 @@ A: 报告是单个 HTML 文件，易于分享：
 
 **示例：**
 ```bash
-./check_waf_resources.sh AdministratorAccess-813923830882 waf-demo-juice-shop-for-xizhi
+./check_waf_resources.sh AdministratorAccess-987654321098 waf-demo-juice-shop-for-xizhi
 ```
 
 **这个工具会：**
@@ -1528,7 +1528,7 @@ A: 报告是单个 HTML 文件，易于分享：
 ### Q1: SSO Token 过期怎么办？
 ```bash
 # 重新登录
-aws sso login --profile AdministratorAccess-275261018177
+aws sso login --profile AdministratorAccess-123456789012
 
 # 然后重新运行脚本
 python3 get_waf_config.py
@@ -1627,7 +1627,7 @@ logging.basicConfig(level=logging.DEBUG)
 ```bash
 # 先测试单个账户单个区域
 python3 get_waf_config.py \
-  -p AdministratorAccess-275261018177 \
+  -p AdministratorAccess-123456789012 \
   -r us-east-1 \
   --no-parallel
 ```
