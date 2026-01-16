@@ -1056,6 +1056,289 @@ python route53_cli.py analyze route53_config_*.json
 
 ---
 
+## 🔗 安全配置关联分析和可视化工具（2026-01-16 新增）
+
+跨工具关联分析系统，可视化展示 **DNS → ALB → WAF** 的完整安全保护链。
+
+### 功能特性
+
+**4 种可视化类型**：
+1. **关系网络图** - 展示资源之间的关联关系（可拖拽、可缩放、可点击）
+2. **层级树状图** - 按账户/区域/类型组织资源（可折叠）
+3. **统计仪表盘** - WAF 覆盖率、资源分布统计
+4. **安全漏洞列表** - 未保护的 ALB、孤儿 DNS 记录等（可排序、可导出 CSV）
+
+**安全审计能力**：
+- 🔍 识别未绑定 WAF 的公网 ALB（高危）
+- 🔍 识别孤儿 DNS 记录（指向不存在的 ALB）
+- 🔍 识别未使用的 WAF ACL（成本浪费）
+- 📊 计算 WAF 覆盖率
+- ⚠️ 数据一致性验证
+
+**输出格式**：
+- HTML 交互式网页（单文件，无需服务器，直接在浏览器打开）
+- JSON 数据文件（可选，用于调试）
+
+### 使用流程
+
+#### Step 1: 运行三个扫描工具
+
+```bash
+# 确保已登录 AWS SSO
+aws sso login --profile your-profile
+
+# 运行 WAF 扫描
+python waf_cli.py scan
+
+# 运行 ALB 扫描
+python alb_cli.py scan
+
+# 运行 Route53 扫描
+python route53_cli.py scan
+```
+
+#### Step 2: 生成关联分析报告
+
+```bash
+# 基本用法（使用最新的扫描结果）
+python security_audit_cli.py correlate \
+    waf_config_20260116_080000.json \
+    alb_config_20260116_080500.json \
+    route53_config_20260116_081000.json
+
+# 指定输出文件名
+python security_audit_cli.py correlate \
+    waf_config_*.json \
+    alb_config_*.json \
+    route53_config_*.json \
+    -o my_security_report.html
+
+# 同时输出 JSON 数据（用于调试）
+python security_audit_cli.py correlate \
+    waf_config_*.json \
+    alb_config_*.json \
+    route53_config_*.json \
+    --json
+
+# 调试模式（显示详细处理过程）
+python security_audit_cli.py correlate \
+    waf_config_*.json \
+    alb_config_*.json \
+    route53_config_*.json \
+    --debug
+```
+
+#### Step 3: 在浏览器中打开报告
+
+```bash
+# macOS
+open security_audit_report_*.html
+
+# Windows
+start security_audit_report_*.html
+
+# Linux
+xdg-open security_audit_report_*.html
+```
+
+### 完整工作流示例
+
+```bash
+# 一键扫描所有资源并生成报告
+python waf_cli.py scan && \
+python alb_cli.py scan && \
+python route53_cli.py scan && \
+python security_audit_cli.py correlate \
+    $(ls -t waf_config_*.json | head -1) \
+    $(ls -t alb_config_*.json | head -1) \
+    $(ls -t route53_config_*.json | head -1) && \
+open security_audit_report_*.html
+```
+
+### 关联匹配算法
+
+工具使用以下策略关联跨工具的资源：
+
+1. **WAF ↔ ALB（双向验证）**：
+   - 正向：WAF 的 `associated_resources[].arn` 匹配 ALB 的 `LoadBalancerArn`
+   - 反向：ALB 的 `waf_association.WebACL.ARN` 匹配 WAF 的 `webacl_arn`
+   - 匹配方式：ARN 精确匹配（最可靠）
+
+2. **Route53 → ALB（单向）**：
+   - Route53 的 `AliasTarget.DNSName` 匹配 ALB 的 `DNSName`
+   - 匹配模式：`*.elb.*.amazonaws.com`
+   - 示例：`my-alb-xxx.elb.us-east-1.amazonaws.com`
+
+3. **Route53 → CloudFront（可选）**：
+   - 匹配模式：`*.cloudfront.net`
+   - 可关联到 WAF 的 CloudFront associations
+
+### 安全漏洞检测
+
+工具自动检测以下安全问题：
+
+| 严重级别 | 类型 | 描述 | 建议 |
+|---------|------|------|------|
+| **HIGH** | 未保护的公网 ALB | Internet-facing ALB 没有绑定 WAF | 立即为公网 ALB 配置 WAF |
+| **MEDIUM** | 孤儿 DNS 记录 | DNS 记录指向不存在的 ALB | 删除或更新 DNS 记录 |
+| **LOW** | 未使用的 WAF ACL | WAF ACL 没有关联任何资源 | 删除以减少成本 |
+
+### 可视化示例
+
+**网络图颜色编码**：
+- 🟢 绿色 - DNS 记录
+- 🔵 蓝色 - ALB（有 WAF 保护）
+- 🔴 红色 - ALB（公网无 WAF，高危）
+- 🟡 黄色 - ALB（内网无 WAF）
+- 🟠 橙色 - WAF ACL
+
+**交互功能**：
+- 拖拽节点重新布局
+- 滚轮缩放
+- 点击节点查看详情
+- 悬停显示工具提示
+
+### 环境检查
+
+在运行前检查所有依赖是否就绪：
+
+```bash
+python security_audit_cli.py check-env
+```
+
+输出示例：
+```
+Checking environment prerequisites...
+============================================================
+
+✓ Python version: 3.11.5
+✓ networkx: 3.2.1
+✓ jinja2: 3.1.2
+✓ boto3: 1.34.10
+
+Template files:
+✓ report_template.html
+✓ network_graph.js
+✓ tree_diagram.js
+✓ dashboard_charts.js
+✓ styles.css
+
+============================================================
+
+✓ All prerequisites are satisfied!
+  You can now use the security_audit_cli.py tool
+```
+
+### 输出文件
+
+| 文件类型 | 文件名 | 用途 |
+|---------|--------|------|
+| HTML 报告 | `security_audit_report_YYYYMMDD_HHMMSS.html` | 交互式可视化报告 |
+| JSON 数据 | `security_audit_report_YYYYMMDD_HHMMSS.json` | 原始数据（可选，`--json` 参数） |
+
+**注意**：这些文件可能包含敏感信息，已在 `.gitignore` 中。
+
+### 技术架构
+
+```
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│ waf_cli.py   │ →   │ alb_cli.py   │ →   │ route53_cli  │
+└──────────────┘     └──────────────┘     └──────────────┘
+       ↓                     ↓                     ↓
+   waf_config.json     alb_config.json     route53_config.json
+       └─────────────────────┴─────────────────────┘
+                             ↓
+              ┌──────────────────────────────────┐
+              │ security_audit_cli.py            │
+              │  - correlate_security_config.py  │  ← 关联分析
+              │  - security_visualizer.py        │  ← 可视化生成
+              └──────────────────────────────────┘
+                             ↓
+         security_audit_report_YYYYMMDD_HHMMSS.html
+```
+
+### 依赖库
+
+Python 库：
+- `networkx>=3.0` - 图数据结构
+- `jinja2>=3.1.0` - HTML 模板渲染
+
+JavaScript 库（通过 CDN，无需安装）：
+- D3.js v7 - 网络图和树状图
+- Chart.js v4 - 统计图表
+- DataTables.js 1.13.7 - 表格增强
+- jQuery 3.7.1 - DataTables 依赖
+
+### 数据存储策略
+
+**Phase 1（当前）- 文件输出**：
+- 无数据库，保持简单
+- 用户手动保存不同日期的文件进行对比
+
+**Phase 2（规划中）- SQLite 存储**：
+- 保存历史扫描结果
+- 追踪 WAF 覆盖率变化趋势
+- 自动对比差异
+- 生成时间序列图表
+
+### 常见问题
+
+**Q: 为什么有些关联显示不一致？**
+
+A: 可能的原因：
+1. 三个工具在不同时间扫描，资源在扫描期间发生变化
+2. ALB 或 DNS 记录最近才创建/修改
+3. WAF 绑定还在传播中
+
+建议：在短时间内（<1小时）连续运行三个扫描工具。
+
+**Q: 报告中的警告是什么意思？**
+
+A: 警告表示数据不一致，例如：
+- WAF 声称关联了某个 ALB，但在 ALB 扫描结果中找不到
+- ALB 声称有 WAF，但 WAF 没有反向关联
+
+这些警告帮助识别配置问题或数据同步延迟。
+
+**Q: 如何定期生成报告？**
+
+A: 可以使用 cron job 或 GitHub Actions：
+
+```bash
+# 每周一早上 8 点运行
+0 8 * * 1 cd /path/to/tool && ./weekly_audit.sh
+```
+
+`weekly_audit.sh` 示例：
+```bash
+#!/bin/bash
+python waf_cli.py scan
+python alb_cli.py scan
+python route53_cli.py scan
+python security_audit_cli.py correlate \
+    $(ls -t waf_config_*.json | head -1) \
+    $(ls -t alb_config_*.json | head -1) \
+    $(ls -t route53_config_*.json | head -1)
+```
+
+**Q: 报告可以离线使用吗？**
+
+A: 可以，但有限制：
+- HTML 文件本身可以离线打开
+- JavaScript 库通过 CDN 加载，需要网络连接
+- 如果需要完全离线，可以下载 JavaScript 库到本地（计划在 Phase 2 实现）
+
+**Q: 如何分享报告？**
+
+A: 报告是单个 HTML 文件，易于分享：
+1. 直接通过邮件发送
+2. 上传到内部文件服务器
+3. 上传到 S3 并生成预签名 URL
+
+⚠️ **注意**：报告包含敏感信息（账户 ID、资源 ARN、DNS 名称），请确保安全分享。
+
+---
+
 ## 输出数据结构
 
 ### JSON 格式

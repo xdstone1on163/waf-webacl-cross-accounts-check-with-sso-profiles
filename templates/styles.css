@@ -1,0 +1,307 @@
+/* AWS Security Audit Report - Styles */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f5f5f5;
+    color: #333;
+    line-height: 1.6;
+}
+
+header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+header h1 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+header p {
+    font-size: 0.95rem;
+    opacity: 0.9;
+}
+
+nav {
+    background-color: #fff;
+    padding: 1rem;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+nav a {
+    margin: 0 1rem;
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+nav a:hover {
+    background-color: #f0f0f0;
+    color: #764ba2;
+}
+
+section {
+    background-color: #fff;
+    margin: 2rem;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+section h2 {
+    color: #667eea;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+/* 网络图容器 */
+#network-graph-container {
+    width: 100%;
+    height: 600px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    background-color: #fafafa;
+    position: relative;
+}
+
+#network-graph-container svg {
+    cursor: move;
+}
+
+/* 树状图容器 */
+#tree-diagram-container {
+    width: 100%;
+    height: 600px;
+    overflow: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    background-color: #fafafa;
+}
+
+/* 仪表盘容器 */
+#dashboard-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+}
+
+.chart-card {
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+
+.chart-card canvas {
+    max-height: 300px;
+}
+
+/* DataTables 样式覆盖 */
+.dataTables_wrapper {
+    margin-top: 1rem;
+}
+
+.dataTables_wrapper table {
+    width: 100% !important;
+}
+
+table.dataTable {
+    border-collapse: collapse;
+}
+
+table.dataTable thead th {
+    background-color: #667eea;
+    color: white;
+    padding: 12px;
+    text-align: left;
+    font-weight: 500;
+}
+
+table.dataTable tbody td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+table.dataTable tbody tr:hover {
+    background-color: #f5f5f5;
+}
+
+/* 严重级别标签 */
+.severity-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.severity-HIGH {
+    background-color: #ffebee;
+    color: #c62828;
+}
+
+.severity-MEDIUM {
+    background-color: #fff3e0;
+    color: #ef6c00;
+}
+
+.severity-LOW {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
+
+/* 警告框 */
+.warning-box {
+    background-color: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 1rem;
+    margin: 1rem 0;
+    border-radius: 4px;
+}
+
+.warning-box h3 {
+    color: #856404;
+    margin-bottom: 0.5rem;
+}
+
+.warning-box ul {
+    margin-left: 1.5rem;
+    color: #856404;
+}
+
+/* 摘要卡片 */
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.summary-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.summary-card h3 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.summary-card p {
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+/* 图例 */
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: #f9f9f9;
+    border-radius: 4px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.legend-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    section {
+        margin: 1rem;
+        padding: 1rem;
+    }
+
+    nav a {
+        margin: 0 0.5rem;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    #network-graph-container,
+    #tree-diagram-container {
+        height: 400px;
+    }
+
+    .summary-cards {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* 加载动画 */
+.loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 400px;
+    color: #667eea;
+}
+
+.loading::after {
+    content: "Loading...";
+    font-size: 1.2rem;
+}
+
+/* 节点详情弹窗 */
+.node-tooltip {
+    position: absolute;
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    max-width: 400px;
+    z-index: 1000;
+    font-size: 0.9rem;
+}
+
+.node-tooltip h4 {
+    margin-bottom: 0.5rem;
+    color: #667eea;
+}
+
+.node-tooltip .detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.25rem 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.node-tooltip .detail-label {
+    font-weight: 500;
+    color: #666;
+}
+
+.node-tooltip .detail-value {
+    color: #333;
+}
